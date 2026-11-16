@@ -56,7 +56,8 @@ export interface Scenario
     id: string; hypothesis: string; control?: boolean; variants: string[];
     expect: { loads?: string[]; skills?: string[]; notLoads?: string[]; notSkills?: string[] }; runs: ScenarioRun[];
 }
-export interface Report { title: string | null; map: ContextMap; traces: Trace[]; tests: { ranAt: string; scenarios: Scenario[] } | null }
+// baseline 은 비교할 지난 측정입니다(build-report 의 --baseline). 요약 화면이 항상 로드되는 양을 이것과 견줍니다.
+export interface Report { title: string | null; map: ContextMap; traces: Trace[]; tests: { ranAt: string; scenarios: Scenario[] } | null; baseline?: { label: string; alwaysChars: number; commit?: string } | null }
 
 export function loadReport(): Report | null
 {

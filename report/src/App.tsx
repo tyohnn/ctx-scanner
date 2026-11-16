@@ -3,23 +3,31 @@ import { Moon, Sun } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Inspector } from "@/components/Inspector";
-import { Chars } from "@/components/bits";
+import { settled } from "@/components/advice";
 import { IconToggle, Select, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
-import { loadReport, n, secs } from "@/data";
-import { AdviceView } from "@/views/AdviceView";
+import { loadReport, secs } from "@/data";
+import type { FlowFilter } from "@/lib/flowgraph";
+import { AreaMapView } from "@/views/AreaMapView";
 import { FilesView } from "@/views/FilesView";
 import { FlowView } from "@/views/FlowView";
 import { MapView } from "@/views/MapView";
+import { SummaryView } from "@/views/SummaryView";
 import { TestsView } from "@/views/TestsView";
 import { TimelineView } from "@/views/TimelineView";
+import { TodoView } from "@/views/TodoView";
 
-type Tab = "map" | "flow" | "timeline" | "files" | "tests" | "advice";
+// 탭은 읽는 사람의 물음 순서입니다: 얼마나(요약) → 무엇부터(할 일) → 무엇이 무엇을 부르나(플로우) → 어디가 무겁나(영역 지도) → 이 파일은(파일) → 자세히(맵 · 타임라인 · 시나리오).
+type Tab = "summary" | "todo" | "flow" | "areas" | "files" | "map" | "timeline" | "tests";
+const TABS: Tab[] = ["summary", "todo", "flow", "areas", "files", "map", "timeline", "tests"];
 
 // 주소의 # 뒤에 보던 위치를 적어 둡니다. 보고서를 다시 열거나 남에게 건넬 때 같은 화면이 뜹니다.
 function readHash()
 {
     const p = new URLSearchParams(location.hash.slice(1));
-    return { tab: (p.get("tab") as Tab) ?? "map", node: p.get("node"), trace: Number(p.get("trace") ?? -1), dark: p.get("theme") !== "light" };
+    // 지난 버전의 탭 이름(advice)으로 건넨 주소도 같은 화면을 엽니다.
+    const raw = p.get("tab") === "advice" ? "todo" : p.get("tab");
+    const tab = TABS.includes(raw as Tab) ? raw as Tab : "summary";
+    return { tab, node: p.get("node"), trace: Number(p.get("trace") ?? -1), dark: p.get("theme") !== "light", area: p.get("area"), scope: p.get("scope") };
 }
 
 export function App()
@@ -30,6 +38,7 @@ export function App()
     const [selected, setSelected] = useState<string | null>(init.node);
     const [traceIndex, setTraceIndex] = useState(init.trace);
     const [dark, setDark] = useState(init.dark);
+    const [filter, setFilter] = useState<FlowFilter>({ area: init.area, scope: init.scope, common: false });
 
     useEffect(() => { document.documentElement.classList.toggle("dark", dark); }, [dark]);
     useEffect(() =>
@@ -37,9 +46,19 @@ export function App()
         const p = new URLSearchParams({ tab });
         if (selected) p.set("node", selected);
         if (traceIndex >= 0) p.set("trace", String(traceIndex));
+        if (tab === "flow" && filter.area) p.set("area", filter.area);
+        if (tab === "flow" && filter.scope) p.set("scope", filter.scope);
         if (!dark) p.set("theme", "light");
         history.replaceState(null, "", `#${p}`);
-    }, [tab, selected, traceIndex, dark]);
+    }, [tab, selected, traceIndex, dark, filter]);
+    // 같은 문서 안에서 주소의 # 만 바꿔도 그 화면으로 갑니다(링크로 탭을 건넬 때).
+    useEffect(() =>
+    {
+        const on = () => { const h = readHash(); setTab(h.tab); setSelected(h.node); if (h.area || h.scope) setFilter((f) => ({ ...f, area: h.area, scope: h.scope })); };
+        window.addEventListener("hashchange", on);
+        return () => window.removeEventListener("hashchange", on);
+    }, []);
+    const openCell = (area: string, scope: string) => { setFilter((f) => ({ ...f, area, scope })); setTab("flow"); };
 
     if (!report)
     {
@@ -49,15 +68,16 @@ export function App()
     const { map, traces, tests } = report;
     const trace = traces.length ? traces[traceIndex >= 0 && traceIndex < traces.length ? traceIndex : traces.length - 1] : null;
     const node = map.nodes.find((x) => x.id === selected) ?? null;
-    const count = (kind: string) => map.nodes.filter((x) => x.kind === kind).length;
-    const alwaysRules = map.nodes.filter((x) => x.source === "rule-always").length;
+    const todoCount = map.suggestions.filter((x) => !settled(x)).length + (trace?.findings.length ?? 0);
     const tabs: { key: Tab; label: string; badge?: string | number; show: boolean }[] = [
-        { key: "map", label: "맵", show: true },
-        { key: "flow", label: "플로우", badge: map.flows?.length, show: !!map.flows?.length },
-        { key: "timeline", label: "타임라인", badge: traces.length || undefined, show: traces.length > 0 },
+        { key: "summary", label: "요약", show: true },
+        { key: "todo", label: "할 일", badge: todoCount, show: true },
+        { key: "flow", label: "플로우", show: !!map.flows?.length },
+        { key: "areas", label: "영역 지도", show: !!map.flows?.length },
         { key: "files", label: "파일", show: true },
+        { key: "map", label: "맵", show: true },
+        { key: "timeline", label: "타임라인", badge: traces.length || undefined, show: traces.length > 0 },
         { key: "tests", label: "시나리오", badge: tests?.scenarios.length, show: !!tests },
-        { key: "advice", label: "제안", badge: map.suggestions.length + (trace?.findings.length ?? 0), show: true },
     ];
     document.title = `ctxscope · ${report.title ?? map.meta.repo}`;
 
@@ -77,13 +97,7 @@ export function App()
                         ))}
                     </TabsList>
                     <div className="ml-auto flex items-center gap-4 text-[11px] text-muted-foreground">
-                        <span>항상 로드되는 내용 <Chars value={map.meta.alwaysChars} className="text-foreground" /></span>
-                        <span>폴더 지시문 <span className="num text-foreground">{count("nested")}</span></span>
-                        <span>경로 규칙 <span className="num text-foreground">{count("rule") - alwaysRules}</span></span>
-                        {alwaysRules > 0 && <span>항상 로드되는 규칙 <span className="num text-foreground">{alwaysRules}</span></span>}
-                        <span>스킬 <span className="num text-foreground">{count("skill")}</span></span>
-                        <span>파일 <span className="num text-foreground">{n(map.meta.files)}</span></span>
-                        {traces.length > 1 && (
+{traces.length > 1 && (
                             <Select
                                 label="볼 세션" value={String(traces.indexOf(trace!))} onChange={(v) => setTraceIndex(Number(v))} className="no-print max-w-64"
                                 items={traces.map((t, i) => ({
@@ -97,14 +111,17 @@ export function App()
                 </header>
                 <div className="flex min-h-0 flex-1">
                     <main className="min-w-0 flex-1">
+                        <TabsContent value="summary" className="h-full"><SummaryView report={report} trace={trace} onOpenCell={openCell} onOpenTodo={() => setTab("todo")} /></TabsContent>
+                        <TabsContent value="todo" className="h-full"><TodoView map={map} trace={trace} onSelect={setSelected} /></TabsContent>
+                        <TabsContent value="flow" className="h-full"><FlowView map={map} filter={filter} onFilter={setFilter} onSelect={setSelected} /></TabsContent>
+                        <TabsContent value="areas" className="h-full"><AreaMapView map={map} onOpenCell={openCell} /></TabsContent>
                         <TabsContent value="map" className="h-full"><MapView map={map} trace={trace} selected={selected} onSelect={setSelected} /></TabsContent>
-                        <TabsContent value="flow" className="h-full"><FlowView map={map} selected={selected} onSelect={setSelected} onOpenAdvice={() => setTab("advice")} /></TabsContent>
                         {trace && <TabsContent value="timeline" className="h-full"><TimelineView key={trace.session} trace={trace} selected={selected} onSelect={setSelected} /></TabsContent>}
                         <TabsContent value="files" className="h-full"><FilesView map={map} selected={selected} onSelect={setSelected} /></TabsContent>
                         {tests && <TabsContent value="tests" className="h-full"><TestsView tests={tests} onOpenTrace={(s) => { setTraceIndex(traces.findIndex((t) => t.session === s)); setTab("timeline"); }} /></TabsContent>}
-                        <TabsContent value="advice" className="h-full"><AdviceView map={map} trace={trace} onSelect={setSelected} /></TabsContent>
                     </main>
-                    {tab !== "tests" && <Inspector map={map} trace={trace} node={node} onSelect={setSelected} />}
+                    {/* 상세 패널은 무언가를 골랐을 때만 엽니다. 비어 있을 때 화면을 차지하지 않게 합니다. */}
+                    {node && tab !== "tests" && <Inspector map={map} trace={trace} node={node} onSelect={setSelected} />}
                 </div>
             </Tabs>
         </ReactFlowProvider>

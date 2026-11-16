@@ -1,137 +1,174 @@
-import { ArrowRight, CornerDownRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from "d3-sankey";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Chars } from "@/components/bits";
-import { Input, Segmented } from "@/components/ui";
-import { n, type ContextMap, type Flow, type MapNode } from "@/data";
+import { Switch } from "@/components/ui";
+import { n, type ContextMap } from "@/data";
+import { buildCircuit, buildGraph, cellChars, KIND_NAME, scopeName, TYPE_COLOR, TYPE_NAME, type FlowFilter, type GLink, type GNode } from "@/lib/flowgraph";
 import { cn } from "@/lib/utils";
 
-interface Props { map: ContextMap; selected: string | null; onSelect: (id: string | null) => void; onOpenAdvice: () => void }
+import { CircuitDiagram } from "./CircuitDiagram";
 
-// 한 줄이 플로우 하나입니다. 왼쪽에서 오른쪽으로 「건드리는 파일 → 자동으로 로드되는 것(폴더 · 계층 · 도메인) → 필요할 때만 읽는 것」 순서입니다.
-// 같은 영역의 줄을 위아래로 나란히 두어서, 어느 위치에서 어느 축이 비어 있는지가 한눈에 보입니다.
-const COLS = "grid grid-cols-[minmax(220px,1.3fr)_minmax(150px,1fr)_minmax(150px,1fr)_minmax(150px,1fr)_84px_minmax(200px,1.2fr)] gap-x-4";
+interface Props { map: ContextMap; filter: FlowFilter; onFilter: (f: FlowFilter) => void; onSelect: (id: string | null) => void }
 
-export function FlowView({ map, selected, onSelect, onOpenAdvice }: Props)
+type SNode = SankeyNode<GNode, GLink>;
+type SLink = SankeyLink<GNode, GLink>;
+// 배치를 마친 선의 양 끝은 마디 객체입니다. 배치 전에는 id 문자열이라 타입이 둘 다 열려 있어 좁혀 씁니다.
+const endOf = (v: SLink["source"]): SNode => (typeof v === "object" ? v : { id: String(v), label: String(v), type: "etc", col: 0 }) as SNode;
+const HEADS = ["① 건드린 영역", "② 자동으로 로드되는 지시문", "③ 지시문이 가리키는 스킬", "④ 그 스킬이 가리키는 스킬"];
+
+// 플로우는 두 단계로 봅니다. 위는 저장소 전체의 흐름 그래프(웹 사용자 흐름 그래프와 같은 꼴), 아래는 고른 칸 하나의 회로도입니다.
+// 두 그림 모두 선의 모양이 같은 뜻입니다: 실선 자동 로드, 굵은 점선 지시, 가는 점선 색인, 붉은 가지 OPEN.
+export function FlowView({ map, filter, onFilter, onSelect }: Props)
 {
     const flows = map.flows ?? [];
-    const byId = useMemo(() => new Map(map.nodes.map((x) => [x.id, x])), [map]);
     const areas = (map.meta.areas ?? []).filter((a) => flows.some((f) => f.area === a.id));
-    const [area, setArea] = useState("all");
-    const [query, setQuery] = useState("");
-    const q = query.trim().toLowerCase();
-    const shown = flows.filter((f) => (area === "all" || f.area === area) && (!q || f.scope.toLowerCase().includes(q) || f.example.toLowerCase().includes(q) || [...f.folder, ...f.layer, ...f.domain].some((id) => byId.get(id)?.title.toLowerCase().includes(q))));
-    const groups = areas.map((a) => ({ area: a, rows: shown.filter((f) => f.area === a.id) })).filter((g) => g.rows.length);
-    const notes = (id: string) => map.suggestions.filter((s) => s.kind === "mece" && (s.id === `gap:${id}` || s.id === `no-layer:${id}`));
+    const wrap = useRef<HTMLDivElement>(null);
+    const [width, setWidth] = useState(1000);
+    const [hover, setHover] = useState<{ node?: SNode; link?: SLink } | null>(null);
+    useEffect(() =>
+    {
+        if (!wrap.current) return;
+        const ro = new ResizeObserver(([e]) => setWidth(Math.max(880, Math.floor(e.contentRect.width))));
+        ro.observe(wrap.current);
+        return () => ro.disconnect();
+    }, []);
+
+    const graph = useMemo(() =>
+    {
+        const g = buildGraph(map, filter);
+        const perCol = [0, 1, 2, 3].map((c) => g.nodes.filter((x) => x.col === c).length);
+        const height = Math.max(380, Math.max(...perCol) * 30 + 60);
+        if (!g.links.length) return { ...g, layout: null, height };
+        const layout = sankey<GNode, GLink>().nodeId((d) => d.id).nodeWidth(12).nodePadding(12).nodeAlign((d) => d.col).nodeSort(null as never)
+            .extent([[1, 30], [width - 1, height - 6]])({ nodes: g.nodes.map((d) => ({ ...d })), links: g.links.map((d) => ({ ...d })) });
+        return { ...g, layout, height };
+    }, [map, filter, width]);
+
+    // 마디 하나에서 위아래로 이어진 길만 남깁니다.
+    const lit = useMemo(() =>
+    {
+        if (!hover) return null;
+        const nodes = new Set<SNode>(), links = new Set<SLink>();
+        if (hover.link) { links.add(hover.link); nodes.add(endOf(hover.link.source)); nodes.add(endOf(hover.link.target)); return { nodes, links }; }
+        const walk = (x: SNode, up: boolean) =>
+        {
+            for (const l of (up ? x.targetLinks : x.sourceLinks) ?? [])
+            {
+                if (links.has(l)) continue;
+                links.add(l);
+                const m = endOf(up ? l.source : l.target);
+                nodes.add(m); walk(m, up);
+            }
+        };
+        nodes.add(hover.node!); walk(hover.node!, true); walk(hover.node!, false);
+        return { nodes, links };
+    }, [hover]);
+
+    // 회로도로 펼칠 칸: 고른 칸, 아니면 고른 영역에서 파일이 가장 많은 칸, 아니면 요약 화면의 첫 줄과 같은 칸(테스트를 뺀 가장 무거운 칸)입니다.
+    const cell = useMemo(() =>
+    {
+        if (filter.scope) return flows.find((f) => f.area === filter.area && f.scope === filter.scope);
+        if (filter.area) return flows.filter((f) => f.area === filter.area).sort((a, b) => b.files - a.files)[0];
+        return flows.filter((f) => f.area !== "test").sort((a, b) => cellChars(b) - cellChars(a))[0];
+    }, [flows, filter]);
+    const circuit = useMemo(() => cell ? buildCircuit(map, cell) : null, [map, cell]);
 
     if (!flows.length) return <div className="grid h-full place-items-center text-xs text-muted-foreground">이 맵에는 플로우가 없습니다. 맵을 다시 만들면 채워집니다.</div>;
 
+    const { layout, height, areaFiles } = graph;
+    const describe = () =>
+    {
+        if (!hover) return "마디나 선에 마우스를 올리면 그 길만 남고 나머지는 흐려집니다. 왼쪽 영역을 누르면 그 영역의 흐름만 보고, 아래 회로도도 그 영역으로 바뀝니다.";
+        if (hover.link) { const l = hover.link; return `${endOf(l.source).label} → ${endOf(l.target).label} · ${KIND_NAME[l.kind]} · 파일 ${n(l.value)}개`; }
+        const d = hover.node!;
+        const len = d.ref ? map.nodes.find((x) => x.id === d.ref)?.chars : undefined;
+        if (d.type === "area") return `${d.label} — 파일 ${n(areaFiles.get(d.ref!) ?? 0)}개. 누르면 이 영역의 흐름만 봅니다.`;
+        if (d.type === "gap") return `${d.label} — 파일 ${n(d.value ?? 0)}개를 열어도 이 축의 지시문이 로드되지 않습니다.`;
+        if (d.type === "skill") return `${d.label} 스킬 — 파일 ${n(d.value ?? 0)}개에서 이어집니다${len ? ` · 길이 ${n(len)}자` : ""}. 가리킬 때만 읽힙니다.`;
+        return `${d.label} (${TYPE_NAME[d.type]}) — 파일 ${n(d.value ?? 0)}개가 이 지시문을 로드합니다${len ? ` · 길이 ${n(len)}자` : ""}.`;
+    };
+    const dash = (k: GLink["kind"]) => k === "cmd" ? "7 4" : k === "idx" ? "2 4" : undefined;
+    const colX = [0, 1, 2, 3].map((c) => layout?.nodes.find((x) => x.col === c)?.x0);
+
     return (
-        <div className="flex h-full flex-col">
-            <div className="flex shrink-0 flex-wrap items-center gap-3 border-b px-4 py-2.5">
-                <Segmented
-                    label="개발 영역" value={area} onChange={setArea}
-                    items={[{ value: "all", label: <>전체 <span className="num opacity-70">{flows.length}</span></> }, ...areas.map((a) => ({ value: a.id, label: <>{a.label} <span className="num opacity-70">{flows.filter((f) => f.area === a.id).length}</span></> }))]}
-                />
-                <Input aria-label="위치나 지시문 이름으로 찾기" value={query} onValueChange={(v) => setQuery(v)} spellCheck={false} placeholder="위치나 지시문으로 찾기" className="num w-64" />
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-auto">
-                <div className="min-w-[1080px]">
-                    <div className={cn(COLS, "sticky top-0 z-10 border-b bg-background px-4 py-2 text-[11px] font-semibold text-muted-foreground")}>
-                        <div>① 건드리는 파일</div>
-                        <div className="flex items-center gap-1.5"><ArrowRight className="size-3" />② 폴더 <span className="font-normal">어느 폴더 아래인가</span></div>
-                        <div>② 계층 <span className="font-normal">어떤 종류의 파일인가</span></div>
-                        <div>② 도메인 <span className="font-normal">어느 도메인의 코드인가</span></div>
-                        <div className="text-right">자동 로드</div>
-                        <div className="flex items-center gap-1.5"><CornerDownRight className="size-3" />③ 필요할 때만 <span className="font-normal">지시문이 가리키는 스킬</span></div>
-                    </div>
-
-                    {groups.map(({ area: a, rows }) =>
-                    {
-                        const any = { layer: rows.some((f) => f.layer.length), domain: rows.some((f) => f.domain.length) };
-                        return (
-                            <section key={a.id}>
-                                <div className="flex items-baseline gap-3 border-b bg-sidebar px-4 py-1.5">
-                                    <h3 className="text-xs font-semibold">{a.label}</h3>
-                                    <code className="num truncate text-[11px] text-muted-foreground">{a.paths.join("  ")}</code>
-                                    <span className="num ml-auto shrink-0 text-[11px] text-muted-foreground">{rows.length}곳 · 파일 {n(rows.reduce((s, f) => s + f.files, 0))}개</span>
-                                </div>
-                                {notes(a.id).map((s) => (
-                                    <button key={s.id} type="button" onClick={onOpenAdvice} className="flex w-full items-center gap-2 border-b px-4 py-1.5 text-left text-[11px] text-muted-foreground hover:text-foreground">
-                                        <span className="inline-block size-1.5 shrink-0 rounded-full" style={{ background: "var(--warning)" }} />{s.title}
-                                    </button>
-                                ))}
-                                {rows.map((f) => <FlowRow key={f.id} flow={f} byId={byId} any={any} selected={selected} onSelect={onSelect} />)}
-                            </section>
-                        );
-                    })}
-                    {!groups.length && <div className="px-4 py-10 text-center text-xs text-muted-foreground">조건에 맞는 플로우가 없습니다.</div>}
+        <div className="h-full overflow-y-auto">
+            <div className="mx-auto max-w-[1280px] space-y-4 px-6 py-5">
+                <div>
+                    <h2 className="text-sm font-semibold">파일을 열면 컨텍스트가 어디로 이어지나</h2>
+                    <p className="mt-0.5 max-w-[80ch] text-xs text-muted-foreground">굵기는 그 연결을 지나는 파일 수입니다. 실선은 자동 로드, 굵은 점선은 규칙의 「엽니다」 지시, 가는 점선은 CLAUDE.md 색인의 안내, 붉은 가지는 있어야 할 지시문이 없는 곳(OPEN)입니다.</p>
                 </div>
-            </div>
-        </div>
-    );
-}
+                <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="영역 고르기">
+                    {[{ id: null as string | null, label: "전체" }, ...areas].map((a) => (
+                        <button
+                            key={a.id ?? "all"} type="button" aria-pressed={filter.area === a.id && !filter.scope}
+                            onClick={() => onFilter({ ...filter, area: a.id, scope: null })}
+                            className={cn("cn-button cn-button-size-xs inline-flex cursor-pointer items-center whitespace-nowrap", filter.area === a.id ? "cn-button-variant-secondary" : "cn-button-variant-ghost")}
+                        >{a.label}</button>
+                    ))}
+                    <label className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground">
+                        <Switch aria-label="공통 규칙도 보기" checked={filter.common} onCheckedChange={(v) => onFilter({ ...filter, common: v })} />
+                        공통 규칙도 보기
+                    </label>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                    {(["folder", "layer", "domain", "skill", "gap"] as const).map((t) => <span key={t} className="inline-flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-sm" style={{ background: TYPE_COLOR[t] }} />{t === "gap" ? "OPEN (지시문 없음)" : TYPE_NAME[t]}</span>)}
+                    {(["auto", "cmd", "idx"] as const).map((k) => <span key={k} className="inline-flex items-center gap-1.5"><svg width="30" height="8" aria-hidden><line x1="1" y1="4" x2="29" y2="4" stroke="currentColor" strokeWidth={k === "idx" ? 1.5 : 2.5} strokeDasharray={dash(k)} /></svg>{KIND_NAME[k]}</span>)}
+                </div>
+                <div ref={wrap} className="overflow-x-auto">
+                    {layout && (
+                        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="영역에서 지시문, 스킬로 이어지는 흐름 그래프" className="cx-flowgraph block" data-lit={lit ? "" : undefined}>
+                            {HEADS.map((h, c) => colX[c] != null && <text key={h} className="cx-colhead" x={c === 3 ? colX[c]! + 12 : colX[c]} y={14} textAnchor={c === 3 ? "end" : "start"}>{h}</text>)}
+                            <g>
+                                {layout.links.map((l, i) => (
+                                    <path
+                                        key={i} d={sankeyLinkHorizontal()(l) ?? undefined} fill="none" stroke={TYPE_COLOR[endOf(l.target).type]} strokeWidth={Math.max(1, l.width ?? 1)}
+                                        className={cn("cx-band", l.kind !== "auto" && l.kind !== "open" && "ptr", lit?.links.has(l) && "on")}
+                                        onMouseEnter={() => setHover({ link: l })} onMouseLeave={() => setHover(null)}
+                                    />
+                                ))}
+                            </g>
+                            <g pointerEvents="none">
+                                {layout.links.filter((l) => l.kind === "cmd" || l.kind === "idx").map((l, i) => (
+                                    <path key={i} d={sankeyLinkHorizontal()(l) ?? undefined} fill="none" stroke={TYPE_COLOR[endOf(l.target).type]} strokeWidth={l.kind === "cmd" ? 2 : 1.4} strokeDasharray={dash(l.kind)} className={cn("cx-center", lit?.links.has(l) && "on")} />
+                                ))}
+                            </g>
+                            {layout.nodes.map((d) => (
+                                <g
+                                    key={d.id} tabIndex={0} role="button" aria-label={d.label} className={cn("cx-node", lit?.nodes.has(d) && "on")}
+                                    onMouseEnter={() => setHover({ node: d })} onMouseLeave={() => setHover(null)} onFocus={() => setHover({ node: d })} onBlur={() => setHover(null)}
+                                    onClick={() => d.type === "area" ? onFilter({ ...filter, area: filter.area === d.ref ? null : d.ref!, scope: null }) : d.ref && onSelect(d.ref)}
+                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (d.type === "area") onFilter({ ...filter, area: filter.area === d.ref ? null : d.ref!, scope: null }); else if (d.ref) onSelect(d.ref); } }}
+                                >
+                                    <rect x={d.x0} y={d.y0} width={(d.x1 ?? 0) - (d.x0 ?? 0)} height={Math.max(2, (d.y1 ?? 0) - (d.y0 ?? 0))} rx={2} fill={TYPE_COLOR[d.type]} />
+                                    <text x={d.col === 3 ? (d.x0 ?? 0) - 6 : (d.x1 ?? 0) + 6} y={((d.y0 ?? 0) + (d.y1 ?? 0)) / 2} dy="0.35em" textAnchor={d.col === 3 ? "end" : "start"}>
+                                        {d.col === 0 ? `${d.label} · ${n(areaFiles.get(d.ref!) ?? 0)}` : d.label}
+                                    </text>
+                                </g>
+                            ))}
+                        </svg>
+                    )}
+                </div>
+                <p className="min-h-10 border-l-2 pl-3 text-xs text-muted-foreground" aria-live="polite">{describe()}</p>
 
-function FlowRow({ flow, byId, any, selected, onSelect }: { flow: Flow; byId: Map<string, MapNode>; any: { layer: boolean; domain: boolean }; selected: string | null; onSelect: (id: string) => void })
-{
-    const auto = flow.chars.folder + flow.chars.layer + flow.chars.domain + flow.chars.common;
-    const chips = (ids: string[]) => ids.map((id) => byId.get(id)).filter((x): x is MapNode => !!x).map((x) => <Chip key={x.id} node={x} scope={flow.scope} picked={selected === x.id} onSelect={onSelect} chars />);
-    // 같은 영역의 다른 위치에는 있는데 이 위치에만 없으면 빈칸으로 표시합니다. 영역 전체에 없으면 그냥 비워 둡니다.
-    const empty = (siblings: boolean) => siblings ? <span className="cn-badge cn-badge-variant-secondary inline-flex items-center whitespace-nowrap" style={{ color: "var(--warning)" }}>빈칸</span> : <span className="text-[11px] text-muted-foreground">없음</span>;
-    return (
-        <div className={cn(COLS, "items-start border-b px-4 py-2 text-xs")}>
-            <div className="min-w-0">
-                <div className="flex items-baseline gap-2"><span className="num font-medium">{flow.scope}</span><span className="num text-[11px] text-muted-foreground">{n(flow.files)}개</span></div>
-                <div className="num truncate text-[11px] text-muted-foreground" title={flow.example}>{flow.example.startsWith(flow.scope + "/") ? flow.example.slice(flow.scope.length + 1) : flow.example}</div>
-                {flow.variants > 1 && <div className="text-[10.5px] text-muted-foreground">이 가운데 {n(flow.exampleFiles)}개 기준 · 로드되는 조합이 {flow.variants}가지</div>}
-            </div>
-            <div className="flex min-w-0 flex-wrap gap-1">{flow.folder.length ? chips(flow.folder) : empty(false)}</div>
-            <div className="flex min-w-0 flex-wrap gap-1">
-                {flow.layer.length ? chips(flow.layer) : empty(any.layer)}
-                {flow.common.length > 0 && <span className="w-full truncate text-[10.5px] text-muted-foreground" title={flow.common.map((id) => byId.get(id)?.title).join(", ")}>그 밖의 규칙 {flow.common.map((id) => byId.get(id)?.title).join(" · ")}</span>}
-            </div>
-            <div className="flex min-w-0 flex-wrap gap-1">{flow.domain.length ? chips(flow.domain) : empty(any.domain)}</div>
-            <div className="text-right"><Chars value={auto} /></div>
-            <div className="min-w-0 space-y-1">
-                {flow.skills.length === 0 && <span className="text-[11px] text-muted-foreground">가리키는 스킬 없음</span>}
-                {flow.skills.map((s) =>
-                {
-                    const node = byId.get(s.id);
-                    const next = flow.next.filter((x) => x.via === s.id);
-                    if (!node) return null;
-                    return (
-                        <div key={s.id} className="flex flex-wrap items-center gap-1" title={`${byId.get(s.via)?.title ?? s.via} 이 가리킵니다`}>
-                            <Chip node={node} picked={selected === node.id} onSelect={onSelect} dashed />
-                            {next.map((x) => byId.get(x.id) && (
-                                <span key={x.id} className="inline-flex items-center gap-1">
-                                    <ArrowRight className="size-3 text-muted-foreground" />
-                                    <Chip node={byId.get(x.id)!} picked={selected === x.id} onSelect={onSelect} dashed sub={x.files ? `파일 ${x.files}` : undefined} />
-                                </span>
+                {circuit && (
+                    <div className="space-y-3 border-t pt-5">
+                        <div>
+                            <h2 className="text-sm font-semibold">회로도 · {circuit.flow.areaLabel} · {circuit.flow.scope}</h2>
+                            <p className="mt-0.5 max-w-[80ch] text-xs text-muted-foreground">고른 칸 하나를 회로도로 펼칩니다. 입력 핀이 건드린 파일, 실선이 자동으로 로드되는 지시문, 점선 박스가 가리켜야 열리는 스킬입니다. 위치를 바꾸면 그 위치의 회로가 그려집니다.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5" role="group" aria-label="위치 고르기">
+                            {flows.filter((f) => f.area === circuit.flow.area).sort((a, b) => b.files - a.files).map((f) => (
+                                <button
+                                    key={f.scope} type="button" aria-pressed={f.scope === circuit.flow.scope}
+                                    onClick={() => onFilter({ ...filter, area: f.area, scope: f.scope })}
+                                    className={cn("cn-button cn-button-size-xs inline-flex cursor-pointer items-center whitespace-nowrap", f.scope === circuit.flow.scope ? "cn-button-variant-secondary" : "cn-button-variant-ghost")}
+                                >{scopeName(f.scope)} <span className="num ml-1 opacity-70">{n(f.files)}</span></button>
                             ))}
                         </div>
-                    );
-                })}
-                {flow.docCount > 0 && <div className="truncate text-[10.5px] text-muted-foreground" title={flow.docs.join("\n")}>문서 {flow.docCount}곳 참조</div>}
+                        <CircuitDiagram circuit={circuit} alwaysChars={map.meta.alwaysChars} onSelect={onSelect} />
+                    </div>
+                )}
             </div>
         </div>
-    );
-}
-
-function Chip({ node, scope, picked, onSelect, chars, dashed, sub }: { node: MapNode; scope?: string; picked: boolean; onSelect: (id: string) => void; chars?: boolean; dashed?: boolean; sub?: string })
-{
-    // 폴더 지시문은 그 위치에서 본 상대 경로로 적습니다. 위치 바로 아래의 것은 파일 이름만 남습니다.
-    const rel = node.kind === "nested" && scope && node.path.startsWith(scope + "/") ? node.path.slice(scope.length + 1) : node.path;
-    const label = node.kind === "nested" ? (rel.length > 30 ? "…" + rel.slice(-29) : rel) : node.title;
-    return (
-        <button
-            type="button" onClick={() => onSelect(node.id)} title={node.path}
-            className={cn("num inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded border bg-background px-1.5 py-0.5 text-[11px] hover:bg-muted", dashed && "border-dashed", picked && "bg-muted ring-1 ring-ring")}
-        >
-            <span className="truncate">{label}</span>
-            {chars && <span className="shrink-0 text-muted-foreground">{n(node.chars)}</span>}
-            {sub && <span className="shrink-0 text-muted-foreground">{sub}</span>}
-            {node.kind === "skill" && node.listing && node.listing !== "on" && <span className="shrink-0 text-muted-foreground">목록에 없음</span>}
-        </button>
     );
 }

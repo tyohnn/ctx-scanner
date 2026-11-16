@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 맵 · 기록 · 시나리오 결과를 보고서 템플릿에 채워 HTML 문서 하나를 냅니다.
-// 쓰는 법: node build-report.mjs [--root <저장소>] [--data <자료 폴더>] [--title <제목>] [--out <report.html>]
+// 쓰는 법: node build-report.mjs [--root <저장소>] [--data <자료 폴더>] [--title <제목>] [--out <report.html>] [--baseline <지난 자료 폴더> --baseline-label <이름>]
 // 자료 폴더에서 map.json · traces/ · tests.json · advice.json 을 찾아 있는 것만 넣습니다.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -57,7 +57,12 @@ for (const a of advice?.suggestions ?? [])
 const order = { high: 0, medium: 1, low: 2 };
 map.suggestions.sort((a, b) => order[a.severity] - order[b.severity]);
 
-const report = { title: arg("title") ?? null, map, traces, tests };
+// 지난 측정의 맵이 있으면 요약 화면이 항상 로드되는 양을 그것과 견줍니다.
+const baselineDir = arg("baseline");
+const baselineMap = baselineDir ? JSON.parse(readFileSync(join(resolve(baselineDir), "map.json"), "utf8")) : null;
+const baseline = baselineMap ? { label: arg("baseline-label") ?? "지난 측정", alwaysChars: baselineMap.meta.alwaysChars, commit: baselineMap.meta.commit } : null;
+
+const report = { title: arg("title") ?? null, map, traces, tests, baseline };
 // 내용 속의 닫는 태그가 문서를 끊지 않게 합니다.
 const body = JSON.stringify(report).replace(/</g, "\\u003c");
 const out = resolve(arg("out", join(data, "report.html")));

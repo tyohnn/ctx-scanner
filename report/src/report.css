@@ -97,3 +97,63 @@ body {
 @media print {
     .no-print { display: none !important; }
 }
+
+/* ── 플로우 · 영역 지도 · 회로도 ──
+   마디의 종류는 태그의 색조를 읽습니다. 끊긴 곳(OPEN)만 위험 색입니다. */
+:root {
+    --flow-area: var(--tag-gray-fg);
+    --flow-folder: var(--tag-blue-fg);
+    --flow-layer: var(--tag-green-fg);
+    --flow-domain: var(--tag-purple-fg);
+    --flow-skill: var(--tag-orange-fg);
+    --flow-gap: var(--destructive);
+    --circuit-wire: var(--tag-green-fg);
+    --circuit-rail: var(--tag-blue-fg);
+    --circuit-short: var(--tag-yellow-fg);
+}
+.cx-flowgraph text { font-size: 12px; fill: var(--foreground); paint-order: stroke; stroke: var(--background); stroke-width: 3px; stroke-linejoin: round; }
+.cx-flowgraph text.cx-colhead { fill: var(--muted-foreground); font-weight: 500; stroke: none; }
+.cx-flowgraph .cx-band { stroke-opacity: .32; transition: stroke-opacity var(--motion-base) var(--motion-ease); }
+.cx-flowgraph .cx-band.ptr { stroke-opacity: .16; }
+.cx-flowgraph .cx-center { stroke-opacity: .85; }
+.cx-flowgraph .cx-node { cursor: pointer; outline: none; }
+.cx-flowgraph .cx-node:focus-visible rect { stroke: var(--foreground); stroke-width: 2; }
+.cx-flowgraph[data-lit] .cx-band { stroke-opacity: .05; }
+.cx-flowgraph[data-lit] .cx-band.on { stroke-opacity: .7; }
+.cx-flowgraph[data-lit] .cx-band.ptr.on { stroke-opacity: .35; }
+.cx-flowgraph[data-lit] .cx-center { stroke-opacity: .08; }
+.cx-flowgraph[data-lit] .cx-center.on { stroke-opacity: 1; }
+.cx-flowgraph[data-lit] .cx-node { opacity: .25; }
+.cx-flowgraph[data-lit] .cx-node.on { opacity: 1; }
+
+.cx-mark { display: inline-block; width: 7px; height: 7px; border: 1.5px solid var(--flow-gap); }
+.cx-mark.l { border-radius: 1px; }
+.cx-mark.d { border-radius: 50%; }
+
+.cx-circuit { font-family: var(--font-mono); }
+.cx-circuit text { font-size: 12px; fill: var(--foreground); }
+.cx-circuit .t-small { font-size: 10px; fill: var(--muted-foreground); }
+.cx-circuit .t-sub { font-size: 11px; fill: var(--muted-foreground); }
+.cx-circuit .t-main { font-size: 13px; }
+.cx-circuit .t-main.sm { font-size: 11.5px; }
+.cx-circuit .t-col { font-size: 11px; fill: var(--muted-foreground); }
+.cx-circuit .t-rail { fill: var(--circuit-rail); }
+.cx-circuit .t-io { font-size: 13px; }
+.cx-circuit .t-chip { fill: var(--background); font-size: 13px; letter-spacing: 2px; }
+.cx-circuit .t-open { fill: var(--flow-gap); font-weight: 500; }
+.cx-circuit .t-short { fill: var(--circuit-short); font-size: 11px; }
+.cx-circuit .w-auto { stroke: var(--circuit-wire); stroke-width: 2; fill: none; }
+.cx-circuit .w-rail { stroke: var(--circuit-rail); stroke-width: 3; fill: none; }
+.cx-circuit .w-cmd { stroke: var(--circuit-wire); stroke-width: 2; stroke-dasharray: 7 4; fill: none; }
+.cx-circuit .w-idx { stroke: var(--circuit-wire); stroke-width: 1.2; stroke-dasharray: 2 4; fill: none; }
+.cx-circuit .w-open { stroke: var(--flow-gap); stroke-width: 2; fill: none; }
+.cx-circuit .w-short { stroke: var(--circuit-short); stroke-width: 2; fill: none; }
+.cx-circuit .fill-wire { fill: var(--circuit-wire); }
+.cx-circuit .fill-grid { fill: var(--border); }
+.cx-circuit .b-io { fill: var(--background); stroke: var(--foreground); stroke-width: 1.5; }
+.cx-circuit .b-gate { fill: var(--muted); stroke: var(--circuit-wire); stroke-width: 1.5; }
+.cx-circuit .b-gate.common { stroke: var(--border-strong); }
+.cx-circuit .b-skill { fill: var(--background); stroke: var(--circuit-wire); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.cx-circuit .b-chip { fill: var(--foreground); }
+.cx-circuit .b-todo { fill: none; stroke: var(--muted-foreground); stroke-width: 1.2; stroke-dasharray: 3 4; }
+.cx-short-text { color: var(--circuit-short); }
