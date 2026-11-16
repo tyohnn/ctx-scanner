@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 
-import { ROLE_LABEL, LEVELS, kindLabel, REASON_LABEL, n, secs, type ContextMap, type MapNode, type Trace } from "@/data";
+import { CONTENT_KINDS, ROLE_LABEL, LEVELS, kindLabel, REASON_LABEL, n, secs, type ContextMap, type MapNode, type Trace } from "@/data";
 
 import { Chars, CONFIDENCE, LevelBadge, NodeLink, Section, SEVERITY } from "./bits";
 import { Button, Meter } from "./ui";
@@ -130,6 +130,25 @@ export function Inspector({ map, trace, node, onSelect }: Props)
                         </div>
                     </Section>
                 )}
+
+                {node.content && (() =>
+                {
+                    const content = node.content;
+                    const total = Object.values(content).reduce((a, b) => a + b, 0);
+                    const derivable = CONTENT_KINDS.filter((k) => k.derivable).reduce((a, k) => a + content[k.key], 0);
+                    return total > 0 && (
+                        <Section title="내용 종류" hint={`코드가 정본인 글 ${Math.round(derivable / total * 100)}%`}>
+                            <div className="space-y-1">
+                                {CONTENT_KINDS.filter((k) => content[k.key] > 0).map((k) => (
+                                    <div key={k.key}>
+                                        <div className="flex justify-between gap-2"><span className={k.derivable ? "text-muted-foreground" : undefined}>{k.label}</span><Chars value={content[k.key]} className="shrink-0 text-[11px]" /></div>
+                                        <div className="h-1 rounded-full bg-muted"><div className={`h-full rounded-full ${k.derivable ? "bg-muted-foreground/50" : "bg-ring"}`} style={{ width: `${content[k.key] / total * 100}%` }} /></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </Section>
+                    );
+                })()}
 
                 {trace && (
                     <Section title="이 세션에서">

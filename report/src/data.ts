@@ -14,7 +14,15 @@ export interface MapNode
     matchedFiles?: number; namedBy?: string[]; extraFiles?: number;
     role?: "layer" | "domain" | "common" | "general"; areas?: string[]; listing?: "on" | "name-only" | "user-invocable-only" | "off"; fullListingChars?: number;
     refs?: { path: string; resolved: string | null; state: "ok" | "suffix" | "dead" | "outside" }[];
+    // 문장 종류별 글자 수입니다. 루트 · 폴더 지시문 · 경로 규칙에만 있습니다.
+    content?: Record<ContentKind, number>;
 }
+export type ContentKind = "rule" | "command" | "procedure" | "term" | "history" | "state" | "other";
+// 상태 기술과 결정 경위는 코드와 결정 문서가 정본이라 지시문에 두면 둘이 갈라집니다.
+export const CONTENT_KINDS: { key: ContentKind; label: string; derivable?: boolean }[] = [
+    { key: "rule", label: "금지와 함정" }, { key: "command", label: "명령" }, { key: "procedure", label: "절차" }, { key: "term", label: "용어" },
+    { key: "other", label: "그 밖의 규약" }, { key: "state", label: "상태 기술", derivable: true }, { key: "history", label: "결정 경위", derivable: true },
+];
 export interface MapEdge { from: string; to: string; kind: "hard" | "soft"; reason: string }
 export interface Stack { parts: string[]; files: number; chars: number; examples: string[]; topDirs: [string, number][] }
 // 빈칸: 계층 규칙이나 도메인 용어 규칙이 하나도 로드되지 않는 칸입니다.

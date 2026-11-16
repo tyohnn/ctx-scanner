@@ -733,6 +733,98 @@ if (bare.files / src.length > 0.1)
     });
 }
 
+// ── 내용의 종류 ────────────────────────────────────────────────────────────
+// 지시문에는 코드를 읽어서 알 수 없는 것만 적습니다(Claude Code 공식 문서 「Tell Claude what it can't see」). 화면에 무엇이
+// 섰는지, 어느 주소 값이 무엇을 여는지처럼 코드에서 읽히는 것을 적으면 진실이 코드와 문서 두 곳에 생기고 한쪽만 바뀝니다.
+// 그래서 문단 · 항목마다 종류를 가르고, 코드에서 읽히는 상태 기술과 결정 문서로 갈 경위가 많은 지시문을 알립니다.
+// ⚠ 문장의 모양만 보는 추정이라 판정은 advise 스킬이 내용을 읽고 합니다.
+const KINDS = {
+    rule: "금지와 함정",
+    command: "명령",
+    procedure: "절차",
+    term: "용어",
+    history: "결정 경위",
+    state: "상태 기술",
+    other: "그 밖의 규약",
+};
+// 「(2026-10-12 사용자 결정)」처럼 날짜를 단 결정은 코드에 없는 사실이라 남길 것으로 셉니다. 경위는 지난 일을 서술한 문장입니다.
+const DECISION_RE = /사용자 결정/;
+const RULE_RE = /⚠|❌|IMPORTANT|않습니다|않는다|않고|말 것|마십시오|금지|안 됩니다|안 된다|되살리지|되돌리지|합치지|넣지|빼지|\bnever\b|\bdon't\b|\bdo not\b|\bmust\b/i;
+const HISTORY_RE = /종전|예전|이전에는|그 전에는|지웠|제거했|없앴|바꿨|옮겼|폐기|했습니다|었습니다|았습니다|였습니다|됐습니다|섰습니다/;
+const STATE_RE = /`\?[a-z_]+=|섰습니다|서 있습니다|열립니다|섭니다|차례입니다|차례이고|탭으로|탭입니다|탭이고|단추입니다|칸입니다|목록입니다|화면입니다|그립니다|보입니다/;
+const statementsOf = (text) =>
+{
+    const out = [];
+    let cur = null;
+    let fence = false;
+    const flush = () => { if (cur && cur.text.trim()) out.push(cur); cur = null; };
+    for (const line of withoutGenerated(text).replace(/^---\n[\s\S]*?\n---\n/, "").split("\n"))
+    {
+        if (/^\s*(```|~~~)/.test(line))
+        {
+            if (!fence) { flush(); cur = { fence: true, text: "" }; }
+            fence = !fence;
+            cur.text += line + "\n";
+            if (!fence) flush();
+            continue;
+        }
+        if (fence) { cur.text += line + "\n"; continue; }
+        if (!line.trim() || /^#/.test(line)) { flush(); continue; }
+        // 항목 하나(들여 쓴 이어짐 줄 포함) · 표의 줄 하나 · 문단 하나가 한 문장 묶음입니다.
+        if (/^(\s{0,3}[-*]|\s{0,3}\d+\.)\s/.test(line) || /^\|/.test(line)) { flush(); cur = { text: "" }; }
+        cur ??= { text: "" };
+        cur.text += line + "\n";
+        if (/^\|/.test(line)) flush();
+    }
+    flush();
+    return out;
+};
+const kindOf = (st, termTable) =>
+{
+    const t = st.text;
+    if (st.fence) return /\b(npm|npx|node|docker|supabase|git|curl|pnpm|yarn)\b/.test(t) ? "command" : "other";
+    if (/^\|\s*-/.test(t)) return null;
+    if (termTable && /^\|/.test(t)) return "term";
+    if (/^\s{0,3}\d+\.\s/.test(t)) return "procedure";
+    if (RULE_RE.test(t)) return "rule";
+    if (/`(npm|npx|node|supabase|docker) [^`]+`/.test(t) && t.length < 300) return "command";
+    // 결정 꼬리표가 붙어도 화면이 어떻게 생겼는지를 늘어놓은 문장은 상태 기술입니다. 결정은 「~합니다 · ~두지 않습니다」 한 줄이면 됩니다.
+    if (STATE_RE.test(t)) return "state";
+    if (DECISION_RE.test(t)) return "rule";
+    if (HISTORY_RE.test(t)) return "history";
+    return "other";
+};
+const DERIVABLE_MIN = 0.3;
+for (const n of nodes.filter((x) => ["root", "nested", "rule"].includes(x.kind)))
+{
+    const text = read(n.path);
+    const termTable = /\|\s*쓰지 않는 말\s*\|/.test(text);
+    const content = Object.fromEntries(Object.keys(KINDS).map((k) => [k, 0]));
+    const samples = { state: [], history: [] };
+    // 긴 항목은 금지 한 문장과 상태 기술 여러 문장이 섞여 있어서, 항목을 다시 문장으로 쪼개 문장마다 가릅니다.
+    const sentencesOf = (st) => st.fence || /^\|/.test(st.text) || /^\s{0,3}\d+\.\s/.test(st.text)
+        ? [st]
+        : st.text.split(/(?<=다\.|\.\s)\s+/).filter((x) => x.trim()).map((x) => ({ text: x }));
+    for (const st of statementsOf(text).flatMap(sentencesOf))
+    {
+        const k = kindOf(st, termTable);
+        if (!k) continue;
+        content[k] += chars(st.text);
+        if (samples[k] && samples[k].length < 3) samples[k].push(st.text.trim().replace(/\s+/g, " ").slice(0, 90));
+    }
+    n.content = content;
+    const total = Object.values(content).reduce((a, b) => a + b, 0);
+    const derivable = content.state + content.history;
+    if (total < 1500 || derivable / total < DERIVABLE_MIN) continue;
+    suggestions.push({
+        id: `derivable:${n.id}`, kind: "content", severity: derivable >= 4000 ? "medium" : "low", confidence: "heuristic", targets: [n.id],
+        title: `${n.title} 에서 코드가 정본인 글 ${Math.round(derivable / total * 100)}% 를 지웁니다`,
+        evidence: `상태 기술 ${content.state.toLocaleString()}자 · 결정 경위 ${content.history.toLocaleString()}자 / 전체 ${total.toLocaleString()}자.${samples.state.length ? ` 상태 기술의 예: 「${samples.state[0]}」.` : ""} 화면이나 코드가 바뀌면 이 글은 그대로 남아 어긋납니다.`,
+        action: "상태 기술은 지웁니다(코드가 정본입니다). 결정은 「~하지 않는다 · 되돌리지 않는다」 한 줄 제약으로 남기고 날짜와 경위는 결정 문서로 보냅니다.",
+        saves: derivable,
+    });
+}
+
 // ── 겹침과 빈칸 ─────────────────────────────────────────────────────────────
 // 지시문끼리는 우선순위가 없습니다. 모두 이어 붙여 로드되고, 서로 어긋나면 어느 쪽을 따를지 정해져 있지 않습니다.
 // 그래서 같은 말은 한 곳에만 두고(겹침 없이), 건드리는 파일마다 필요한 규약이 빠짐없이 로드되게(빈칸 없이) 맞춥니다.
