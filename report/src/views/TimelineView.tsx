@@ -1,12 +1,12 @@
-import { Input } from "@ui-sdk/react/input";
 import {
     visibleWaterfallRows, Waterfall, WaterfallAxis, WaterfallBar, WaterfallCell, WaterfallColumnHeader, WaterfallHeaderRow, WaterfallIndicator,
     WaterfallMark, WaterfallRow, WaterfallRowHeader, WaterfallTick, type WaterfallData, type WaterfallDataItem,
 } from "@ui-sdk/react/waterfall";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { Segmented, SEVERITY } from "@/components/bits";
+import { SEVERITY } from "@/components/bits";
+import { Input, Segmented } from "@/components/ui";
 import { REASON_LABEL, ROW_COLOR, ROW_LABEL, n, secs, shortPath, type RowKind, type Trace, type TraceRow } from "@/data";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,6 @@ const FILTERS: { key: string; label: string; kinds: RowKind[] | null }[] = [
 ];
 const ZOOMS = [{ value: "all", label: "전체" }, { value: "30", label: "첫 30초" }, { value: "10", label: "첫 10초" }];
 const GRID = "grid grid-cols-[minmax(220px,1.4fr)_76px_84px_minmax(120px,1fr)_72px_64px_minmax(260px,2.2fr)] items-center";
-const CELL = "outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring";
 // 눈금은 둥근 때에 서므로 소수 없이 적습니다.
 const axisTime = (ms: number) => ms === 0 ? "0" : ms % 1000 ? secs(ms) : ms < 60000 ? `${ms / 1000}초` : `${Math.floor(ms / 60000)}분${ms % 60000 ? ` ${ms % 60000 / 1000}초` : ""}`;
 const idOf = (r: TraceRow) => `r${r.i}`;
@@ -115,10 +114,7 @@ export function TimelineView({ trace, selected, onSelect }: Props)
             <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
                 <Segmented label="보일 사건" value={filter} onChange={setFilter} items={FILTERS.map((f) => ({ value: f.key, label: f.label }))} />
                 {D > 30000 && <Segmented label="보는 구간" value={zoom} onChange={setZoom} items={ZOOMS} />}
-                <label className="no-print flex items-center gap-1.5 rounded border bg-card px-2 py-1 text-xs focus-within:ring-2 focus-within:ring-ring">
-                    <Search className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                    <Input aria-label="이름이나 경로로 거르기" value={query} onValueChange={(v) => setQuery(v)} placeholder="이름이나 경로로 거르기" className="w-44 bg-transparent outline-none placeholder:text-muted-foreground" />
-                </label>
+                <Input aria-label="이름이나 경로로 거르기" value={query} onValueChange={(v) => setQuery(v)} placeholder="이름이나 경로로 거르기" className="no-print w-52" />
                 {trace.prompt?.preview && <span className="ml-auto max-w-[36%] truncate text-xs text-muted-foreground">요청 「{trace.prompt.preview}」</span>}
             </div>
 
@@ -127,7 +123,7 @@ export function TimelineView({ trace, selected, onSelect }: Props)
                     {trace.findings.map((f) => (
                         <button
                             key={f.id} type="button" aria-pressed={finding === f.id} onClick={() => setFinding(finding === f.id ? null : f.id)}
-                            className={cn("min-w-0 flex-1 rounded border bg-card px-3 py-2 text-left", finding === f.id && "ring-2 ring-primary")}
+                            className={cn("cn-card min-w-0 flex-1 cursor-pointer gap-0 px-3 py-2 text-left", finding === f.id && "ring-2 ring-ring")}
                         >
                             <div className="flex items-center gap-1.5 font-medium">
                                 <span className="inline-block size-1.5 shrink-0 rounded-full" style={{ background: SEVERITY[f.severity].color }} />{f.title}
@@ -138,7 +134,7 @@ export function TimelineView({ trace, selected, onSelect }: Props)
                 </div>
             )}
 
-            <div className={cn(GRID, "border-b bg-secondary pl-3 pr-[22px] text-[11px] text-muted-foreground")}>
+            <div className={cn(GRID, "border-b bg-secondary pl-2.5 pr-5 text-[11px] text-muted-foreground")}>
                 <div className="col-span-6 py-1.5">
                     쌓인 글 <span className="num text-foreground">{n(strip.instr + strip.tool)}자</span>
                     <span className="ml-2 inline-block size-2 rounded-sm align-middle" style={{ background: "var(--lv2)" }} /> 지시문 · 스킬 <span className="num">{n(strip.instr)}</span>
@@ -159,24 +155,24 @@ export function TimelineView({ trace, selected, onSelect }: Props)
                 getBarLabel={(_, { start, duration }) => `${start}에 시작, ${duration} 걸림`}
                 className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-scroll"
             >
-                <WaterfallHeaderRow className={cn(GRID, "sticky top-0 z-10 border-b bg-background px-3 py-1.5 text-[11px] font-medium text-muted-foreground")}>
+                <WaterfallHeaderRow className={cn(GRID, "cx-waterfall-head sticky top-0 z-10")}>
                     <WaterfallColumnHeader>이름</WaterfallColumnHeader>
                     <WaterfallColumnHeader>종류</WaterfallColumnHeader>
                     <WaterfallColumnHeader>까닭</WaterfallColumnHeader>
                     <WaterfallColumnHeader>일으킨 것</WaterfallColumnHeader>
                     <WaterfallColumnHeader className="text-right">크기</WaterfallColumnHeader>
                     <WaterfallColumnHeader className="text-right">때</WaterfallColumnHeader>
-                    <WaterfallColumnHeader aria-label="시간" className="relative ml-3 h-4">
+                    <WaterfallColumnHeader aria-label="시간" className="relative ml-3 h-full">
                         <WaterfallAxis maxTicks={6} className="relative block h-full">
                             {({ ticks }) => ticks.map((t) => (
-                                <WaterfallTick key={t.time} time={t.time} className="num pointer-events-none absolute top-0 h-screen border-l border-border/70 pl-1 font-normal whitespace-nowrap" style={{ left: "var(--waterfall-tick)" }}>
+                                <WaterfallTick key={t.time} time={t.time} className="cx-waterfall-tick num pointer-events-none absolute top-0 h-screen pl-1 leading-(--waterfall-head-height) whitespace-nowrap" style={{ left: "var(--waterfall-tick)" }}>
                                     {t.label}
                                 </WaterfallTick>
                             ))}
                         </WaterfallAxis>
                         {prompt && (
                             <WaterfallMark time={prompt.at} className="pointer-events-none absolute top-0 h-screen border-l border-dashed pl-1 font-normal whitespace-nowrap data-[outside]:hidden" style={{ left: "var(--waterfall-mark)", borderColor: "var(--lv1)", color: "var(--lv1)" }}>
-                                <span className="relative top-3.5 bg-background/80">요청</span>
+                                <span className="relative top-(--waterfall-head-height) bg-background/80">요청</span>
                             </WaterfallMark>
                         )}
                     </WaterfallColumnHeader>
@@ -191,9 +187,9 @@ export function TimelineView({ trace, selected, onSelect }: Props)
                     return (
                         <WaterfallRow
                             key={item.value} value={item.value}
-                            className={cn(GRID, CELL, "h-[26px] cursor-default border-b border-border/60 px-3 text-xs select-none hover:bg-muted/60 data-[selected]:bg-muted", marked.has(r.i) && "bg-[color-mix(in_oklch,var(--warn)_14%,transparent)]")}
+                            data-marked={marked.has(r.i) ? "" : undefined} className={cn(GRID, "cx-waterfall-row cursor-default select-none")}
                         >
-                            <WaterfallRowHeader className={cn(CELL, "flex h-full min-w-0 items-center gap-1.5 pl-[calc((var(--waterfall-level)-1)*16px)]")}>
+                            <WaterfallRowHeader className={"flex h-full min-w-0 items-center gap-1.5 pl-[calc((var(--waterfall-level)-1)*16px)]"}>
                                 {item.children
                                     ? <WaterfallIndicator className="flex text-muted-foreground [&>svg]:transition-transform data-[expanded]:[&>svg]:rotate-90"><ChevronRight className="size-3" aria-hidden="true" /></WaterfallIndicator>
                                     : null}
@@ -201,16 +197,16 @@ export function TimelineView({ trace, selected, onSelect }: Props)
                                 <span className={cn("truncate", r.kind !== "prompt" && r.kind !== "session" && r.kind !== "stop" && "num", loaded && "font-medium")}>{rowName(r)}</span>
                                 {item.children && <span className="num shrink-0 text-[11px] text-muted-foreground">{item.children.length}</span>}
                             </WaterfallRowHeader>
-                            <WaterfallCell className={cn(CELL, "text-muted-foreground")}>{ROW_LABEL[r.kind]}</WaterfallCell>
-                            <WaterfallCell className={cn(CELL, "truncate text-muted-foreground")}>{r.reason ? REASON_LABEL[r.reason] ?? r.reason : ""}</WaterfallCell>
-                            <WaterfallCell className={cn(CELL, "num truncate text-[11px] text-muted-foreground")} title={r.trigger ?? r.reads?.join(", ") ?? ""}>
+                            <WaterfallCell className={"text-muted-foreground"}>{ROW_LABEL[r.kind]}</WaterfallCell>
+                            <WaterfallCell className={"truncate text-muted-foreground"}>{r.reason ? REASON_LABEL[r.reason] ?? r.reason : ""}</WaterfallCell>
+                            <WaterfallCell className={"num truncate text-[11px] text-muted-foreground"} title={r.trigger ?? r.reads?.join(", ") ?? ""}>
                                 {r.trigger ? shortPath(r.trigger, 2) : r.reads ? shortPath(r.reads[0], 2) + (r.reads.length > 1 ? ` 외 ${r.reads.length - 1}` : "") : ""}
                             </WaterfallCell>
-                            <WaterfallCell className={cn(CELL, "num text-right")}>{r.chars ? n(r.chars) : ""}</WaterfallCell>
-                            <WaterfallCell className={cn(CELL, "num text-right text-muted-foreground")}>{secs(r.at)}</WaterfallCell>
-                            <WaterfallBar className={cn(CELL, "relative ml-3 h-full overflow-hidden")}>
+                            <WaterfallCell className={"num text-right"}>{r.chars ? n(r.chars) : ""}</WaterfallCell>
+                            <WaterfallCell className={"num text-right text-muted-foreground"}>{secs(r.at)}</WaterfallCell>
+                            <WaterfallBar className={"relative ml-3 h-full overflow-hidden"}>
                                 {r.at > end ? null : r.dur > 0
-                                    ? <span className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-[2px]" style={{ left: "var(--waterfall-start)", width: "max(var(--waterfall-size), 3px)", background: color }} />
+                                    ? <span className="cx-waterfall-bar absolute top-1/2 -translate-y-1/2" style={{ left: "var(--waterfall-start)", width: "max(var(--waterfall-size), 3px)", background: color }} />
                                     : loaded
                                         ? <span className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[1px]" style={{ left: "var(--waterfall-start)", background: color }} />
                                         : <span className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2" style={{ left: "var(--waterfall-start)", background: color }} />}

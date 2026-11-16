@@ -1,10 +1,10 @@
-import { Switch, SwitchThumb } from "@ui-sdk/react/switch";
 import { Background, BaseEdge, Controls, getBezierPath, Handle, MarkerType, Panel, Position, ReactFlow, type Edge as FlowEdge, type EdgeProps, type Node as FlowNode, type NodeProps } from "@xyflow/react";
 import { FileText, FolderTree, ListTree, Play, Route, Sparkles, Bot, Webhook, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import "@xyflow/react/dist/style.css";
 
-import { LevelDot, Meter } from "@/components/bits";
+import { LevelDot } from "@/components/bits";
+import { Meter, Switch } from "@/components/ui";
 import { LEVELS, n, secs, type ContextMap, type Kind, type Level, type MapNode, type Trace } from "@/data";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +22,7 @@ function CtxNode({ data }: NodeProps<FlowNode<CtxData>>)
     const level = data.level ?? node?.level;
     return (
         <div
-            className={cn("relative w-[196px] rounded-md border bg-card text-card-foreground transition-opacity", data.dim === "far" && "opacity-25", data.dim === "quiet" && "opacity-75", data.picked && "ring-2 ring-primary", data.pseudo === "trigger" && "bg-secondary")}
+            className={cn("cn-card relative w-[196px] gap-0 overflow-visible py-0 transition-opacity", data.dim === "far" && "opacity-25", data.dim === "quiet" && "opacity-75", data.picked && "ring-2 ring-ring", data.pseudo === "trigger" && "bg-secondary")}
         >
             <Handle position={Position.Left} type="target" />
             <Handle position={Position.Right} type="source" />
@@ -31,7 +31,7 @@ function CtxNode({ data }: NodeProps<FlowNode<CtxData>>)
                     {level ? <LevelDot level={level} /> : null}
                     <Icon className="size-3.5 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate text-xs font-medium">{data.label ?? node!.title}</span>
-                    {data.order != null && <span className="num shrink-0 rounded bg-primary px-1 text-[10px] text-primary-foreground">{data.order}</span>}
+                    {data.order != null && <span className="num shrink-0 rounded-sm bg-checked px-1 text-[10px] text-checked-foreground">{data.order}</span>}
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-[10.5px] text-muted-foreground">
                     {data.sub
@@ -74,7 +74,7 @@ function WalkedEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, ta
     return (
         <>
             <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} />
-            <circle r="3.5" fill="var(--primary)"><animateMotion dur="2s" path={path} repeatCount="indefinite" /></circle>
+            <circle r="3.5" fill="var(--checked)"><animateMotion dur="2s" path={path} repeatCount="indefinite" /></circle>
         </>
     );
 }
@@ -199,16 +199,14 @@ export function MapView({ map, trace, selected, onSelect }: Props)
                 onNodeClick={(_, node) => onSelect(node.type === "ctx" && !(node.data as CtxData).pseudo ? node.id : null)}
                 onPaneClick={() => onSelect(null)}
             >
-                <Background bgColor="var(--sidebar)" />
+                <Background bgColor="var(--canvas)" color="var(--border-strong)" />
                 <Controls showInteractive={false} position="bottom-left" className="gap-px overflow-hidden rounded-md border bg-card p-1 shadow-none! [&>button]:rounded-md [&>button]:border-none! [&>button]:bg-transparent! [&>button]:hover:bg-secondary!" />
                 <Panel position="bottom-center" className="m-3 flex overflow-hidden rounded-md border bg-card items-center gap-4 px-3 py-1.5 text-[11px] text-muted-foreground">
                     <span className="flex items-center gap-1.5"><svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="currentColor" strokeWidth="1.5" /></svg>기계가 싣는 길</span>
                     <span className="flex items-center gap-1.5"><svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3" /></svg>모델이 골라야 가는 길</span>
                     {trace && (
                         <label className="no-print flex cursor-pointer items-center gap-1.5 text-foreground">
-                            <Switch checked={overlay} onCheckedChange={(v) => setOverlay(v)} className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full bg-ring outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 data-[checked]:bg-primary">
-                                <SwitchThumb className="block size-3 translate-x-0.5 rounded-full bg-card transition-transform data-[checked]:translate-x-3.5" />
-                            </Switch>
+                            <Switch checked={overlay} onCheckedChange={(v) => setOverlay(v)} />
                             이 세션이 지나간 길 겹쳐 보기
                         </label>
                     )}

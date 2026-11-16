@@ -1,7 +1,8 @@
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 
-import { Chars, CONFIDENCE, Segmented, SEVERITY } from "@/components/bits";
+import { Chars, CONFIDENCE, SEVERITY } from "@/components/bits";
+import { Segmented } from "@/components/ui";
 import { n, type ContextMap, type Suggestion, type Trace } from "@/data";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +42,7 @@ export function AdviceView({ map, trace, onSelect }: Props)
     return (
         <div className="h-full overflow-y-auto">
             <div className="mx-auto max-w-[1040px] px-6 py-5">
-                <div className="rounded-lg border bg-card p-4">
+                <div className="cn-card gap-0 p-4">
                     <div className="flex items-baseline justify-between">
                         <div>
                             <div className="text-sm font-semibold">모든 세션이 치르는 값</div>
@@ -57,7 +58,7 @@ export function AdviceView({ map, trace, onSelect }: Props)
                             <div key={p.key} className="flex items-center gap-2 text-xs">
                                 <span className="inline-block size-2 shrink-0 rounded-sm" style={{ background: p.color }} />
                                 <span className="min-w-0 flex-1 truncate">{p.label}</span>
-                                {p.verdict && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10.5px] text-muted-foreground">{p.verdict}</span>}
+                                {p.verdict && <span className="cn-badge cn-badge-variant-secondary inline-flex shrink-0 items-center whitespace-nowrap">{p.verdict}</span>}
                                 <span className="num w-10 shrink-0 text-right text-muted-foreground">{Math.round(p.chars / total * 100)}%</span>
                                 <Chars value={p.chars} className="w-16 shrink-0 text-right" />
                             </div>
@@ -74,11 +75,11 @@ export function AdviceView({ map, trace, onSelect }: Props)
 
                 <div className="space-y-2 pb-8">
                     {shown.map((s) => (
-                        <article key={s.id} className="rounded-lg border bg-card p-4">
+                        <article key={s.id} className="cn-card gap-0 p-4">
                             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                                 <span className="inline-block size-2 rounded-full" style={{ background: SEVERITY[s.severity].color }} />
                                 <span>{SEVERITY[s.severity].label}</span>
-                                {s.confidence && <span className="rounded bg-muted px-1.5 py-0.5" title={CONFIDENCE[s.confidence].hint}>{CONFIDENCE[s.confidence].label}</span>}
+                                {s.confidence && <span className="cn-badge cn-badge-variant-secondary inline-flex shrink-0 items-center whitespace-nowrap" title={CONFIDENCE[s.confidence].hint}>{CONFIDENCE[s.confidence].label}</span>}
                                 {s.saves ? <span className="num ml-auto text-foreground">늘 실리는 글 −{n(s.saves)}자</span> : null}
                             </div>
                             <h3 className="mt-1.5 text-sm font-semibold leading-snug"><Marked text={s.title} /></h3>
@@ -89,12 +90,12 @@ export function AdviceView({ map, trace, onSelect }: Props)
                             {(s.items?.length || s.targets?.length) ? (
                                 <div className="mt-2.5 flex flex-wrap gap-1">
                                     {(s.targets ?? []).filter((t) => byId.has(t)).slice(0, s.items ? 0 : 6).map((t) => (
-                                        <button key={t} type="button" onClick={() => onSelect(t)} className="rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted">{byId.get(t)!.title}</button>
+                                        <button key={t} type="button" onClick={() => onSelect(t)} className="cn-button cn-button-variant-outline cn-button-size-xs inline-flex cursor-pointer items-center whitespace-nowrap">{byId.get(t)!.title}</button>
                                     ))}
                                     {(s.items ?? []).slice(0, 40).map((it) =>
                                     {
                                         const target = (s.targets ?? []).find((t) => byId.get(t)?.name === it);
-                                        return <button key={it} type="button" disabled={!target} onClick={() => target && onSelect(target)} className={cn("num rounded border px-1.5 py-0.5 text-[11px]", target ? "hover:bg-muted" : "text-muted-foreground")}>{it}</button>;
+                                        return <button key={it} type="button" disabled={!target} onClick={() => target && onSelect(target)} className={cn("num cn-button cn-button-variant-outline cn-button-size-xs inline-flex cursor-pointer items-center whitespace-nowrap")}>{it}</button>;
                                     })}
                                 </div>
                             ) : null}

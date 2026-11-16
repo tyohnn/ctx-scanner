@@ -3,99 +3,11 @@
 
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
+/* 디자인 시스템은 tyohnn 의 graphite 입니다. 세 층을 원본의 차례대로 읽습니다(graphite/README.md). */
+@import "./graphite/globals.css";
+@import "./graphite/theme.css";
+@import "./graphite/tokens.css";
+@import "./graphite/style.css" layer(base);
 
-@theme inline {
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --color-card: var(--card);
-    --color-card-foreground: var(--foreground);
-    --color-secondary: var(--secondary);
-    --color-secondary-foreground: var(--foreground);
-    --color-muted: var(--muted);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-border: var(--border);
-    --color-ring: var(--ring);
-    --color-primary: var(--primary);
-    --color-primary-foreground: var(--background);
-    --color-sidebar: var(--sidebar);
-    --color-accent: var(--accent);
-    --color-lv1: var(--lv1);
-    --color-lv2: var(--lv2);
-    --color-lv3: var(--lv3);
-    --color-lv4: var(--lv4);
-    --color-lv5: var(--lv5);
-    --color-warn: var(--warn);
-    --color-bad: var(--bad);
-    --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
-    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-}
-
-/* 강제 수준의 색은 채도를 낮춰 둡니다. 테두리에는 쓰지 않고 점과 막대에만 씁니다. */
-:root {
-    --background: oklch(0.985 0.002 250);
-    --foreground: oklch(0.24 0.01 255);
-    --card: oklch(1 0 0);
-    --secondary: oklch(0.965 0.003 250);
-    --muted: oklch(0.95 0.004 250);
-    --muted-foreground: oklch(0.52 0.012 255);
-    --border: oklch(0.915 0.005 250);
-    --ring: oklch(0.72 0.01 255);
-    --primary: oklch(0.3 0.02 255);
-    --sidebar: oklch(0.975 0.003 250);
-    --accent: oklch(0.55 0.11 250);
-    --lv1: oklch(0.68 0.11 65);
-    --lv2: oklch(0.6 0.1 245);
-    --lv3: oklch(0.58 0.1 300);
-    --lv4: oklch(0.6 0.08 180);
-    --lv5: oklch(0.68 0.012 255);
-    --warn: oklch(0.66 0.12 65);
-    --bad: oklch(0.58 0.14 25);
-}
-
-.dark {
-    --background: oklch(0.17 0.006 255);
-    --foreground: oklch(0.92 0.005 255);
-    --card: oklch(0.205 0.007 255);
-    --secondary: oklch(0.235 0.008 255);
-    --muted: oklch(0.255 0.008 255);
-    --muted-foreground: oklch(0.66 0.012 255);
-    --border: oklch(0.29 0.008 255);
-    --ring: oklch(0.5 0.012 255);
-    --primary: oklch(0.9 0.01 255);
-    --sidebar: oklch(0.185 0.006 255);
-    --accent: oklch(0.72 0.1 250);
-    --lv1: oklch(0.76 0.1 70);
-    --lv2: oklch(0.72 0.09 245);
-    --lv3: oklch(0.72 0.09 300);
-    --lv4: oklch(0.74 0.07 180);
-    --lv5: oklch(0.6 0.012 255);
-    --warn: oklch(0.78 0.1 75);
-    --bad: oklch(0.7 0.13 25);
-}
-
-html, body, #root { height: 100%; }
-body {
-    margin: 0;
-    background: var(--background);
-    color: var(--foreground);
-    font-family: var(--font-sans);
-    font-size: 13px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    font-feature-settings: "tnum";
-}
-* { border-color: var(--border); }
-.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
-
-.react-flow__attribution { display: none; }
-.react-flow__handle { opacity: 0; pointer-events: none; }
-.react-flow__node { cursor: pointer; }
-.react-flow__controls-button svg { fill: var(--foreground); }
-.react-flow__edge-path { stroke: var(--ring); }
-
-@media print {
-    .no-print { display: none !important; }
-}
+/* 보고서만의 규칙입니다. 색과 치수는 위 토큰에서 읽습니다. */
+@import "./report.css";

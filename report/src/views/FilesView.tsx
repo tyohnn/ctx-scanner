@@ -1,9 +1,8 @@
 import { CornerDownRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { Input } from "@ui-sdk/react/input";
-
-import { Chars, LevelDot, Meter } from "@/components/bits";
+import { Chars, LevelDot } from "@/components/bits";
+import { Input, Meter } from "@/components/ui";
 import { KIND_LABEL, n, type ContextMap, type MapNode } from "@/data";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +33,7 @@ export function FilesView({ map, selected, onSelect }: Props)
                     <div className="mb-1.5 text-xs font-semibold">이 파일을 열면 무엇이 실리나</div>
                     <Input
                         aria-label="열어 볼 파일 경로" value={path} onValueChange={(v) => setPath(v)} spellCheck={false} placeholder="apps/admin/src/app/page.tsx"
-                        className="num w-full rounded border bg-card px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
+                        className="num"
                     />
                     <div className="mt-1.5 text-[11px] text-muted-foreground">경로를 적거나 오른쪽 표의 줄을 누릅니다. 아직 없는 파일의 경로도 됩니다.</div>
                 </div>
@@ -50,7 +49,7 @@ export function FilesView({ map, selected, onSelect }: Props)
                         ? <div className="rounded bg-secondary px-3 py-3 text-xs text-muted-foreground">더 실리는 글이 없습니다. 이 파일은 루트 지시문만 보고 고치게 됩니다.</div>
                         : stack.map((x) => <StackRow key={x.id} node={x} picked={selected === x.id} onSelect={onSelect} limit={map.meta.limits.onDemand200k} why={x.kind === "nested" ? "폴더 진입" : (x.globs ?? []).find((g) => new RegExp(g.re).test(path.trim()))?.glob} />)}
 
-                    <div className="mt-4 rounded border bg-card px-3 py-2.5">
+                    <div className="mt-4 cn-card gap-0 px-3 py-2.5">
                         <div className="flex items-baseline justify-between"><span className="text-xs text-muted-foreground">이 파일 하나를 고칠 때 깔리는 글</span><Chars value={total} className="text-base font-semibold" /></div>
                         <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-muted">
                             <div style={{ width: `${map.meta.alwaysChars / total * 100}%`, background: "var(--lv1)" }} />
@@ -80,7 +79,7 @@ export function FilesView({ map, selected, onSelect }: Props)
                                 <div className="flex min-w-0 flex-1 flex-wrap gap-1">
                                     {s.parts.length === 0
                                         ? <span className="text-xs text-muted-foreground">루트만</span>
-                                        : s.parts.map((p) => <span key={p} className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">{byId.get(p)?.title ?? p}</span>)}
+                                        : s.parts.map((p) => <span key={p} className="cn-badge cn-badge-variant-secondary inline-flex shrink-0 items-center whitespace-nowrap">{byId.get(p)?.title ?? p}</span>)}
                                 </div>
                                 <Chars value={s.chars} className="shrink-0 text-xs" />
                             </div>

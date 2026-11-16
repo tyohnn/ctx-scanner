@@ -64,7 +64,7 @@ export const REASON_LABEL: Record<string, string> = {
     skill_invoke: "모델이 부름", agent_spawn: "모델이 띄움", startup: "새 세션", resume: "이어 하기",
 };
 export const ROW_COLOR: Record<RowKind, string> = {
-    session: "var(--muted-foreground)", prompt: "var(--lv1)", instruction: "var(--lv2)", skill: "var(--lv4)", tool: "var(--lv5)", subagent: "var(--lv3)", compact: "var(--bad)", stop: "var(--muted-foreground)",
+    session: "var(--muted-foreground)", prompt: "var(--lv1)", instruction: "var(--lv2)", skill: "var(--lv4)", tool: "var(--lv5)", subagent: "var(--lv3)", compact: "var(--destructive)", stop: "var(--muted-foreground)",
 };
 export const ROW_LABEL: Record<RowKind, string> = { session: "세션", prompt: "프롬프트", instruction: "지시문", skill: "스킬", tool: "도구", subagent: "서브에이전트", compact: "압축", stop: "끝" };
 

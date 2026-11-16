@@ -1,5 +1,3 @@
-import { Meter as MeterRoot, MeterIndicator, MeterTrack } from "@ui-sdk/react/meter";
-import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import type { ReactNode } from "react";
 
 import { KIND_LABEL, LEVELS, n, type Level, type MapNode } from "@/data";
@@ -13,25 +11,11 @@ export function LevelDot({ level, className }: { level: Level; className?: strin
 export function LevelBadge({ level }: { level: Level })
 {
     return (
-        <span className="inline-flex items-center gap-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+        <span className="cn-badge cn-badge-variant-secondary inline-flex shrink-0 items-center whitespace-nowrap gap-1.5">
             <LevelDot level={level} />
             <span className="num">{level}</span>
             {LEVELS[level].label}
         </span>
-    );
-}
-
-// 상한에 얼마나 찼는지 보이는 막대입니다. 85% 부터 색이 바뀝니다.
-export function Meter({ value, max, label = "상한까지 찬 정도", className }: { value: number; max: number; label?: string; className?: string })
-{
-    const pct = Math.min(value / max, 1);
-    const color = value >= max ? "var(--bad)" : pct >= 0.85 ? "var(--warn)" : "var(--ring)";
-    return (
-        <MeterRoot aria-label={label} value={value} max={max} format={(v) => `${n(v)}자`} className={cn("block w-full", className)}>
-            <MeterTrack className="block h-1 w-full overflow-hidden rounded-full bg-muted">
-                <MeterIndicator className="block h-full rounded-full" style={{ width: "max(var(--meter-value), 2%)", background: color }} />
-            </MeterTrack>
-        </MeterRoot>
     );
 }
 
@@ -64,26 +48,8 @@ export function NodeLink({ node, onSelect, sub }: { node: MapNode; onSelect: (id
     );
 }
 
-// 몇 가지 가운데 하나를 고르는 줄입니다. 고른 칸 뒤로 표시가 미끄러져 옵니다.
-export function Segmented<T extends string>({ label, value, onChange, items }: { label: string; value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode }[] })
-{
-    return (
-        <SegmentedControl aria-label={label} value={value} onValueChange={(v) => { if (v) onChange(v as T); }} className="relative inline-flex items-center rounded-md bg-muted p-0.5">
-            <SegmentedControlIndicator
-                className="absolute rounded bg-card shadow-sm transition-[left,width] duration-150 ease-out"
-                style={{ left: "var(--segmented-control-indicator-left)", top: "var(--segmented-control-indicator-top)", width: "var(--segmented-control-indicator-width)", height: "var(--segmented-control-indicator-height)" }}
-            />
-            {items.map((it) => (
-                <SegmentedControlItem key={it.value} value={it.value} className="relative z-[1] cursor-pointer rounded px-2 py-1 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[checked]:text-foreground">
-                    {it.label}
-                </SegmentedControlItem>
-            ))}
-        </SegmentedControl>
-    );
-}
-
 export const SEVERITY: Record<string, { label: string; color: string }> = {
-    high: { label: "먼저", color: "var(--bad)" }, medium: { label: "다음", color: "var(--warn)" }, low: { label: "여유 있을 때", color: "var(--lv5)" },
+    high: { label: "먼저", color: "var(--destructive)" }, medium: { label: "다음", color: "var(--warning)" }, low: { label: "여유 있을 때", color: "var(--lv5)" },
 };
 export const CONFIDENCE: Record<string, { label: string; hint: string }> = {
     measured: { label: "잰 사실", hint: "파일이나 기록에서 그대로 잰 값입니다" },

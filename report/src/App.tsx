@@ -1,12 +1,10 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-sdk/react/select";
-import { Tabs, TabsList, TabsPanel, TabsTab } from "@ui-sdk/react/tabs";
-import { Toggle, ToggleIcon } from "@ui-sdk/react/toggle";
 import { ReactFlowProvider } from "@xyflow/react";
-import { ChevronsUpDown, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Inspector } from "@/components/Inspector";
 import { Chars } from "@/components/bits";
+import { IconToggle, Select, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { loadReport, n, secs } from "@/data";
 import { AdviceView } from "@/views/AdviceView";
 import { FilesView } from "@/views/FilesView";
@@ -20,7 +18,7 @@ type Tab = "map" | "timeline" | "files" | "tests" | "advice";
 function readHash()
 {
     const p = new URLSearchParams(location.hash.slice(1));
-    return { tab: (p.get("tab") as Tab) ?? "map", node: p.get("node"), trace: Number(p.get("trace") ?? -1), dark: p.get("theme") === "dark" };
+    return { tab: (p.get("tab") as Tab) ?? "map", node: p.get("node"), trace: Number(p.get("trace") ?? -1), dark: p.get("theme") !== "light" };
 }
 
 export function App()
@@ -38,7 +36,7 @@ export function App()
         const p = new URLSearchParams({ tab });
         if (selected) p.set("node", selected);
         if (traceIndex >= 0) p.set("trace", String(traceIndex));
-        if (dark) p.set("theme", "dark");
+        if (!dark) p.set("theme", "light");
         history.replaceState(null, "", `#${p}`);
     }, [tab, selected, traceIndex, dark]);
 
@@ -62,20 +60,17 @@ export function App()
 
     return (
         <ReactFlowProvider>
-            <Tabs value={tab} onValueChange={(v) => { if (v) setTab(v as Tab); }} className="flex h-full flex-col">
-                <header className="flex items-center gap-4 border-b bg-card px-4 py-2">
+            <Tabs value={tab} onValueChange={(v) => { if (v) setTab(v as Tab); }} className="h-full gap-0">
+                <header className="flex h-(--tabs-line-height) shrink-0 items-center gap-4 border-b bg-sidebar px-4">
                     <div className="flex items-baseline gap-2">
                         <span className="num text-sm font-semibold tracking-tight">ctxscope</span>
                         <span className="text-xs text-muted-foreground">{report.title ?? map.meta.repo}{map.meta.commit && <span className="num"> @ {map.meta.commit}</span>}</span>
                     </div>
-                    <TabsList aria-label="보고서 화면" className="flex items-center gap-0.5">
+                    <TabsList aria-label="보고서 화면" className="gap-4 border-b-0">
                         {tabs.filter((t) => t.show).map((t) => (
-                            <TabsTab
-                                key={t.key} value={t.key}
-                                className="cursor-pointer rounded px-2.5 py-1 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[selected]:bg-primary data-[selected]:text-primary-foreground"
-                            >
-                                {t.label}{t.badge != null && <span className="num ml-1 opacity-70">{t.badge}</span>}
-                            </TabsTab>
+                            <TabsTrigger key={t.key} value={t.key}>
+                                {t.label}{t.badge != null && <span className="num text-muted-foreground">{t.badge}</span>}
+                            </TabsTrigger>
                         ))}
                     </TabsList>
                     <div className="ml-auto flex items-center gap-4 text-[11px] text-muted-foreground">
@@ -86,35 +81,23 @@ export function App()
                         <span>파일 <span className="num text-foreground">{n(map.meta.files)}</span></span>
                         {traces.length > 1 && (
                             <Select
-                                aria-label="볼 세션" value={String(traces.indexOf(trace!))} onValueChange={(v) => { if (typeof v === "string") setTraceIndex(Number(v)); }}
-                                items={traces.map((t, i) => ({ value: String(i), label: `${t.session.slice(0, 6)} · ${secs(t.duration)} · ${t.prompt?.preview?.slice(0, 22) ?? "세션"}` }))}
-                            >
-                                <SelectTrigger className="no-print flex max-w-64 cursor-pointer items-center gap-1 rounded border bg-card px-1.5 py-1 text-[11px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                                    <SelectValue className="truncate" /><ChevronsUpDown className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-                                </SelectTrigger>
-                                <SelectContent align="end" sideOffset={4} className="z-50 max-h-80 min-w-[var(--anchor-width)] overflow-y-auto rounded-md border bg-card p-1 text-xs text-foreground shadow-lg outline-none">
-                                    {traces.map((t, i) => (
-                                        <SelectItem key={t.session} value={String(i)} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-muted data-[selected]:font-semibold">
-                                            <span className="num text-muted-foreground">{t.session.slice(0, 6)}</span>
-                                            <span className="num w-14 text-right text-muted-foreground">{secs(t.duration)}</span>
-                                            <span className="truncate">{t.prompt?.preview?.slice(0, 34) ?? "세션"}</span>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                label="볼 세션" value={String(traces.indexOf(trace!))} onChange={(v) => setTraceIndex(Number(v))} className="no-print max-w-64"
+                                items={traces.map((t, i) => ({
+                                    value: String(i), label: `${t.session.slice(0, 6)} · ${secs(t.duration)} · ${t.prompt?.preview?.slice(0, 22) ?? "세션"}`,
+                                    node: <><span className="num text-muted-foreground">{t.session.slice(0, 6)}</span><span className="num w-14 text-right text-muted-foreground">{secs(t.duration)}</span><span className="truncate">{t.prompt?.preview?.slice(0, 34) ?? "세션"}</span></>,
+                                }))}
+                            />
                         )}
-                        <Toggle aria-label="어두운 화면" pressed={dark} onPressedChange={(v) => setDark(v)} className="no-print cursor-pointer rounded p-1 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring data-[pressed]:text-foreground">
-                            <ToggleIcon>{dark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}</ToggleIcon>
-                        </Toggle>
+                        <IconToggle aria-label="어두운 화면" pressed={dark} onPressedChange={(v) => setDark(v)} className="no-print">{dark ? <Sun /> : <Moon />}</IconToggle>
                     </div>
                 </header>
                 <div className="flex min-h-0 flex-1">
                     <main className="min-w-0 flex-1">
-                        <TabsPanel value="map" className="h-full outline-none"><MapView map={map} trace={trace} selected={selected} onSelect={setSelected} /></TabsPanel>
-                        {trace && <TabsPanel value="timeline" className="h-full outline-none"><TimelineView key={trace.session} trace={trace} selected={selected} onSelect={setSelected} /></TabsPanel>}
-                        <TabsPanel value="files" className="h-full outline-none"><FilesView map={map} selected={selected} onSelect={setSelected} /></TabsPanel>
-                        {tests && <TabsPanel value="tests" className="h-full outline-none"><TestsView tests={tests} onOpenTrace={(s) => { setTraceIndex(traces.findIndex((t) => t.session === s)); setTab("timeline"); }} /></TabsPanel>}
-                        <TabsPanel value="advice" className="h-full outline-none"><AdviceView map={map} trace={trace} onSelect={setSelected} /></TabsPanel>
+                        <TabsContent value="map" className="h-full"><MapView map={map} trace={trace} selected={selected} onSelect={setSelected} /></TabsContent>
+                        {trace && <TabsContent value="timeline" className="h-full"><TimelineView key={trace.session} trace={trace} selected={selected} onSelect={setSelected} /></TabsContent>}
+                        <TabsContent value="files" className="h-full"><FilesView map={map} selected={selected} onSelect={setSelected} /></TabsContent>
+                        {tests && <TabsContent value="tests" className="h-full"><TestsView tests={tests} onOpenTrace={(s) => { setTraceIndex(traces.findIndex((t) => t.session === s)); setTab("timeline"); }} /></TabsContent>}
+                        <TabsContent value="advice" className="h-full"><AdviceView map={map} trace={trace} onSelect={setSelected} /></TabsContent>
                     </main>
                     {tab !== "tests" && <Inspector map={map} trace={trace} node={node} onSelect={setSelected} />}
                 </div>

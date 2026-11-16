@@ -2,7 +2,8 @@ import { X } from "lucide-react";
 
 import { KIND_LABEL, LEVELS, REASON_LABEL, n, secs, type ContextMap, type MapNode, type Trace } from "@/data";
 
-import { Chars, CONFIDENCE, LevelBadge, Meter, NodeLink, Section, SEVERITY } from "./bits";
+import { Chars, CONFIDENCE, LevelBadge, NodeLink, Section, SEVERITY } from "./bits";
+import { Button, Meter } from "./ui";
 
 interface Props { map: ContextMap; trace: Trace | null; node: MapNode | null; onSelect: (id: string | null) => void }
 
@@ -11,7 +12,7 @@ export function Inspector({ map, trace, node, onSelect }: Props)
     if (!node)
     {
         return (
-            <aside className="flex w-[360px] shrink-0 flex-col border-l bg-card">
+            <aside className="flex w-[360px] shrink-0 flex-col border-l bg-sidebar">
                 <div className="border-b px-4 py-3 text-xs font-semibold">검사기</div>
                 <div className="space-y-3 px-4 py-4 text-muted-foreground">
                     <p>파일을 하나 고르면 <b className="font-medium text-foreground">언제 실리는지</b>, 얼마나 큰지, 누가 가리키는지를 보여 줍니다.</p>
@@ -39,14 +40,14 @@ export function Inspector({ map, trace, node, onSelect }: Props)
     const listed = node.kind === "skill" || node.kind === "agent";
 
     return (
-        <aside className="flex w-[360px] shrink-0 flex-col overflow-hidden border-l bg-card">
+        <aside className="flex w-[360px] shrink-0 flex-col overflow-hidden border-l bg-sidebar">
             <div className="flex items-start gap-2 border-b px-4 py-3">
                 <div className="min-w-0 flex-1">
                     <div className="text-[11px] text-muted-foreground">{KIND_LABEL[node.kind]}</div>
                     <div className="truncate text-sm font-semibold">{node.title}</div>
                     <div className="num mt-0.5 break-all text-[11px] text-muted-foreground">{node.path}</div>
                 </div>
-                <button type="button" onClick={() => onSelect(null)} className="no-print rounded p-1 text-muted-foreground hover:bg-muted" aria-label="검사기 닫기"><X className="size-4" /></button>
+                <Button variant="ghost" size="icon-sm" onClick={() => onSelect(null)} className="no-print" aria-label="검사기 닫기"><X /></Button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">
                 <Section title="언제 실리나" hint={<LevelBadge level={node.level} />}>
@@ -58,7 +59,7 @@ export function Inspector({ map, trace, node, onSelect }: Props)
                             {node.globs.map((g) => (
                                 <div key={g.glob} className="flex items-center justify-between gap-2 rounded bg-secondary px-2 py-1">
                                     <code className="num truncate text-[11px]">{g.glob}</code>
-                                    <span className="num shrink-0 text-[11px] text-muted-foreground" style={g.files === 0 ? { color: "var(--bad)" } : undefined}>{n(g.files)}개</span>
+                                    <span className="num shrink-0 text-[11px] text-muted-foreground" style={g.files === 0 ? { color: "var(--destructive)" } : undefined}>{n(g.files)}개</span>
                                 </div>
                             ))}
                         </div>
@@ -77,7 +78,7 @@ export function Inspector({ map, trace, node, onSelect }: Props)
                     {listed && (
                         <div className="mb-2">
                             <div className="mb-1 flex justify-between"><span>늘 실리는 설명</span><Chars value={node.listingChars ?? 0} /></div>
-                            <Meter value={node.listingChars ?? 0} max={map.meta.limits.skillListing} />
+                            <Meter label="목록 한 칸에 찬 정도" value={node.listingChars ?? 0} max={map.meta.limits.skillListing} />
                             <div className="mt-0.5 text-right text-[11px] text-muted-foreground">목록 한 칸 {n(map.meta.limits.skillListing)}자</div>
                         </div>
                     )}
@@ -129,7 +130,7 @@ export function Inspector({ map, trace, node, onSelect }: Props)
                         {outbound.map((e) => <NodeLink key={e.to} node={byId.get(e.to)!} onSelect={onSelect} />)}
                         {dead.length > 0 && (
                             <div className="mt-2">
-                                <div className="mb-1 text-[11px]" style={{ color: "var(--bad)" }}>없는 경로 {dead.length}곳</div>
+                                <div className="mb-1 text-[11px]" style={{ color: "var(--destructive)" }}>없는 경로 {dead.length}곳</div>
                                 {dead.slice(0, 8).map((r) => <div key={r.path} className="num break-all text-[11px] text-muted-foreground">{r.path}</div>)}
                             </div>
                         )}
