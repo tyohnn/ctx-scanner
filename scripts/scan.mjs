@@ -718,8 +718,12 @@ for (const n of named.filter((x) => x.listingChars > LIMITS.skillListing))
     });
 }
 
-const bare = stacks.find((s) => s.parts.length === 0);
-if (bare && bare.files / src.length > 0.1)
+// 일부러 규약을 걸지 않는 곳(`ignore` 와 숨은 폴더)은 빼고 셉니다. 원본을 옮겨 둔 패키지가 대부분을 차지해 정작 볼 곳이 묻혔습니다.
+const bareList = src.filter((f) => !ignored(f) && stackOf(f).length === 0);
+const bareTop = {};
+for (const f of bareList) { const top = f.split("/").slice(0, 2).join("/"); bareTop[top] = (bareTop[top] ?? 0) + 1; }
+const bare = { files: bareList.length, topDirs: Object.entries(bareTop).sort((a, b) => b[1] - a[1]).slice(0, 5) };
+if (bare.files / src.length > 0.1)
 {
     suggestions.push({
         id: "bare-files", kind: "coverage", severity: "low", confidence: "measured", targets: [],
