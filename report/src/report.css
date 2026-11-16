@@ -30,6 +30,11 @@
 }
 
 html, body, #root { height: 100%; }
+/* 보고서를 품는 쪽(아티팩트 뷰어 등)이 body 의 글자색을 덮어써도 물려받는 글자가 묻히지 않게, 색을 보고서의 뿌리에 한 번 더 겁니다. */
+#root {
+    color: var(--foreground);
+    background: var(--background);
+}
 body {
     margin: 0;
     font-size: var(--table-font-size);
