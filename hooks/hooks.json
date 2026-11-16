@@ -1,0 +1,14 @@
+{
+    "hooks": {
+        "SessionStart": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/collect.mjs" }] }],
+        "InstructionsLoaded": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/collect.mjs" }] }],
+        "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/collect.mjs" }] }],
+        "PreToolUse": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/collect.mjs" }] }],
+        "PostToolUse": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/collect.mjs" }] }],
+        "SubagentStart": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/collect.mjs" }] }],
+        "SubagentStop": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/collect.mjs" }] }],
+        "PreCompact": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/collect.mjs" }] }],
+        "PostCompact": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/collect.mjs" }] }],
+        "Stop": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/collect.mjs" }] }]
+    }
+}

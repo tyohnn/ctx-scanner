@@ -1,0 +1,7 @@
+{
+    "name": "ctxscope",
+    "version": "0.1.0",
+    "description": "에이전트의 컨텍스트가 언제 무엇으로 채워지는지 지도와 기록과 시나리오로 재고, HTML 보고서로 보여 줍니다.",
+    "author": { "name": "Resolv" },
+    "keywords": ["context", "devtools", "tracing", "skills"]
+}
