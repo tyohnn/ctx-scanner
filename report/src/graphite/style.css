@@ -1,0 +1,30 @@
+/* ============================================================
+   graphite 3층 배럴 — ctxscope 보고서가 쓰는 부품만 추린 것
+   ------------------------------------------------------------
+   원본 배럴(tyohnn registry/systems/graphite/styles/style.css)은 부품 61개를 모두 읽습니다.
+   보고서는 파일 하나로 건네는 문서라 쓰지 않는 규칙까지 싣지 않도록, 여기서 쓰는 부품의
+   파일만 읽습니다. components/ 안의 파일은 원본 그대로이고 손대지 않습니다.
+   부품을 더 쓰게 되면 원본에서 그 파일을 복사해 오고 여기에 한 줄을 더합니다.
+
+   ⚠ 원본과 같이 base 층으로 읽혀야 합니다(index.css 의 layer(base)).
+   ⚠ 밑줄로 시작하는 계열 파일이 먼저 와야 합니다.
+   ============================================================ */
+
+@import "./components/_shared.css";
+@import "./components/_control-family.css";
+@import "./components/_menu-family.css";
+@import "./components/_surface-family.css";
+@import "./components/badge.css";
+@import "./components/button.css";
+@import "./components/card.css";
+@import "./components/input.css";
+@import "./components/kbd.css";
+@import "./components/progress.css";
+@import "./components/select.css";
+@import "./components/separator.css";
+@import "./components/switch.css";
+@import "./components/table.css";
+@import "./components/tabs.css";
+@import "./components/toggle-group.css";
+@import "./components/toggle.css";
+@import "./components/tooltip.css";
