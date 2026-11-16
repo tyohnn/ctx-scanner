@@ -7,12 +7,12 @@ interface Props { tests: NonNullable<Report["tests"]>; onOpenTrace: (session: st
 
 export function TestsView({ tests, onOpenTrace }: Props)
 {
-    const runs = tests.scenarios.flatMap((s) => s.runs);
+    const sessions = new Set(tests.scenarios.flatMap((s) => s.runs.map((r) => r.session)));
     return (
         <div className="h-full overflow-y-auto">
             <div className="mx-auto max-w-[1040px] px-6 py-5">
                 <div className="mb-4 text-xs text-muted-foreground">
-                    시나리오 {tests.scenarios.length}개를 새 세션 {runs.length}번으로 돌렸습니다. 판정은 세션이 남긴 기록만 봅니다. 세션에게는 가설을 알려 주지 않습니다.
+                    시나리오 {tests.scenarios.length}개를 새 세션 {sessions.size}번으로 돌렸습니다. 판정은 세션이 남긴 기록만 봅니다. 세션에게는 가설을 알려 주지 않습니다.
                 </div>
                 <div className="space-y-3 pb-8">{tests.scenarios.map((s) => <ScenarioCard key={s.id} s={s} onOpenTrace={onOpenTrace} />)}</div>
             </div>

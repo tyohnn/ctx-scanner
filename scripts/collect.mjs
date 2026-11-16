@@ -3,15 +3,14 @@
 // 적는 것은 이름 · 경로 · 크기 · 시각뿐입니다. 파일의 내용과 도구의 입력 · 출력은 적지 않습니다.
 // 어떤 까닭으로든 실패하면 조용히 끝냅니다. 수집기가 세션을 막아서는 안 됩니다.
 import { appendFileSync, mkdirSync, readFileSync, statSync } from "node:fs";
-import { homedir } from "node:os";
 import { join, relative, isAbsolute } from "node:path";
+import { dataDir } from "./lib-paths.mjs";
 
 try
 {
     const input = JSON.parse(readFileSync(0, "utf8"));
     const cwd = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
-    const base = process.env.CTXSCOPE_DIR ?? process.env.CLAUDE_PLUGIN_DATA ?? join(homedir(), ".claude", "ctxscope");
-    const dir = join(base, "traces");
+    const dir = join(dataDir(cwd), "traces");
     mkdirSync(dir, { recursive: true });
 
     const rel = (p) => typeof p === "string" && isAbsolute(p) && !relative(cwd, p).startsWith("..") ? relative(cwd, p) : p;

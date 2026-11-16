@@ -33,8 +33,8 @@ export function AdviceView({ map, trace, onSelect }: Props)
     const verdict = (title: string) => all.find((s) => s.id === `demote:${title}`) ? "내릴 수 있음" : all.find((s) => s.id === `ablate:${title}`) ? "재 볼 것" : null;
     const parts = [
         ...(root?.sections ?? []).map((s) => ({ key: s.title, label: s.title, chars: s.chars, color: "var(--lv1)", verdict: verdict(s.title), group: "루트 지시문" })),
-        { key: "named", label: `지시문이 부르는 스킬 설명 ${listed.filter((x) => x.level === 4).length}개`, chars: named, color: "var(--lv4)", verdict: null, group: "스킬 목록" },
-        { key: "free", label: `아무도 안 부르는 스킬 설명 ${listed.filter((x) => x.level === 5).length}개`, chars: free, color: "var(--lv5)", verdict: all.some((s) => s.id === "free-skills") ? "뺄 수 있음" : null, group: "스킬 목록" },
+        { key: "named", label: `지시문이 부르는 스킬 · 서브에이전트 설명 ${listed.filter((x) => x.level === 4).length}개`, chars: named, color: "var(--lv4)", verdict: null, group: "스킬 목록" },
+        { key: "free", label: `아무도 안 부르는 스킬 · 서브에이전트 설명 ${listed.filter((x) => x.level === 5).length}개`, chars: free, color: "var(--lv5)", verdict: all.some((s) => s.id === "free-skills") ? "뺄 수 있음" : null, group: "스킬 목록" },
     ].filter((p) => p.chars > 0);
     const total = parts.reduce((a, p) => a + p.chars, 0);
 
