@@ -52,7 +52,7 @@ export const SEVERITY: Record<string, { label: string; color: string }> = {
     high: { label: "먼저", color: "var(--destructive)" }, medium: { label: "다음", color: "var(--warning)" }, low: { label: "여유 있을 때", color: "var(--lv5)" },
 };
 export const CONFIDENCE: Record<string, { label: string; hint: string }> = {
-    measured: { label: "잰 사실", hint: "파일이나 기록에서 그대로 잰 값입니다" },
-    heuristic: { label: "글에서 짐작", hint: "글이 가리키는 경로로 미루어 본 것입니다" },
-    "needs-test": { label: "재 봐야 함", hint: "시나리오로 돌려 봐야 답이 나옵니다" },
+    measured: { label: "측정값", hint: "파일이나 기록에서 그대로 측정한 값입니다" },
+    heuristic: { label: "추정", hint: "내용이 참조하는 경로로 추정한 것입니다" },
+    "needs-test": { label: "테스트 필요", hint: "시나리오로 돌려 봐야 답이 나옵니다" },
 };

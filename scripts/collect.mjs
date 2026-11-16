@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 훅이 부르는 수집기입니다. 한 사건을 한 줄로 적고 아무것도 내지 않습니다.
+// 훅이 호출하는 수집기입니다. 한 이벤트를 한 줄로 적고 아무것도 내지 않습니다.
 // 적는 것은 이름 · 경로 · 크기 · 시각뿐입니다. 파일의 내용과 도구의 입력 · 출력은 적지 않습니다.
 // 어떤 까닭으로든 실패하면 조용히 끝냅니다. 수집기가 세션을 막아서는 안 됩니다.
 import { appendFileSync, mkdirSync, readFileSync, statSync } from "node:fs";
@@ -37,7 +37,7 @@ try
         row.id = input.tool_use_id;
         // 무엇을 향한 호출인지만 남깁니다. 명령은 첫 낱말만, 프롬프트와 내용은 길이만 남깁니다.
         row.target = rel(ti.file_path ?? ti.path ?? ti.notebook_path) ?? ti.skill ?? ti.subagent_type ?? ti.pattern ?? (typeof ti.command === "string" ? ti.command.trim().split(/\s+/)[0] : undefined);
-        // Bash 로 파일을 읽으면 폴더 규약이 실리지 않습니다. 그 자리를 찾을 수 있게, 명령 속의 실제 파일 경로만 골라 남깁니다.
+        // Bash 로 파일을 읽으면 폴더 규약이 로드되지 않습니다. 그 위치를 찾을 수 있게, 명령 속의 실제 파일 경로만 골라 남깁니다.
         if (input.tool_name === "Bash" && typeof ti.command === "string")
         {
             const reads = [...new Set(ti.command.split(/[\s"'|;&<>()]+/).filter((w) => w.includes("/") || w.includes(".")).filter((w) =>

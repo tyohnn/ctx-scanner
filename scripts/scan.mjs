@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 저장소를 읽어 「무엇이 언제 컨텍스트에 실리는가」의 지도를 JSON 으로 냅니다. 모델을 부르지 않고 파일만 읽습니다.
+// 저장소를 읽어 「무엇이 언제 컨텍스트에 로드되는가」의 맵을 JSON 으로 냅니다. 모델을 호출하지 않고 파일만 읽습니다.
 // 쓰는 법: node scan.mjs [--root <저장소>] [--out <map.json>]
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -10,7 +10,7 @@ const arg = argOf(process.argv.slice(2));
 const root = resolve(arg("root", process.cwd()));
 const out = resolve(arg("out", join(dataDir(root), "map.json")));
 
-// 요청할 때 실리는 파일이 잘리는 길이입니다. 컨텍스트 20만 세션이 4만 자이고 100만 세션이 15만 자입니다.
+// 요청할 때 로드되는 파일이 잘리는 길이입니다. 컨텍스트 20만 세션이 4만 자이고 100만 세션이 15만 자입니다.
 const LIMITS = { onDemand200k: 40000, onDemand1m: 150000, skillListing: 1536 };
 
 const git = (...a) => execFileSync("git", ["-C", root, "-c", "core.quotepath=off", ...a], { maxBuffer: 1 << 30 }).toString();
@@ -80,7 +80,7 @@ const sections = (t) =>
 };
 
 // ── 노드 ─────────────────────────────────────────────────────────────────
-// 강제 수준: 1 늘 실림 · 2 기계가 조건으로 실음 · 3 훅이 강제 · 4 지시문이 가리킴 · 5 모델이 고름
+// 강제 수준: 1 항상 로드 · 2 조건부 로드 · 3 훅이 강제 · 4 지시문이 참조 · 5 모델이 고름
 const nodes = [];
 const byId = new Map();
 const add = (n) =>
@@ -106,10 +106,10 @@ for (const f of claudeMds)
         chars: chars(t), lines: lines(t), level: isRoot ? 1 : 2, dir,
         sections: sections(t).map(({ text, ...s }) => s),
         when: isRoot
-            ? [{ how: "session_start", text: "세션이 시작될 때 전부 실립니다. 압축 뒤에도 다시 실립니다." }]
+            ? [{ how: "session_start", text: "세션이 시작될 때 전부 로드됩니다. 압축 뒤에도 다시 로드됩니다." }]
             : [
-                { how: "nested_traversal", text: `\`${dir}\` 아래 파일을 Read · Edit · Write 로 처음 열 때 실립니다. 어느 파일을 열어도 글 전체가 실립니다.` },
-                { how: "append", text: "실릴 때는 대화의 뒤에 붙어서, 앞쪽에 이미 캐시된 부분은 그대로 다시 쓰입니다. 압축 뒤에는 그 폴더를 다시 열어야 돌아옵니다." },
+                { how: "nested_traversal", text: `\`${dir}\` 아래 파일을 Read · Edit · Write 로 처음 열 때 로드됩니다. 어느 파일을 열어도 내용 전체가 로드됩니다.` },
+                { how: "append", text: "로드될 때는 대화의 뒤에 붙어서, 앞쪽에 이미 캐시된 부분은 그대로 다시 쓰입니다. 압축 뒤에는 그 폴더를 다시 열어야 돌아옵니다." },
             ],
         matchedFiles: isRoot ? files.length : files.filter((x) => x.startsWith(dir)).length,
     });
@@ -128,10 +128,10 @@ for (const f of ruleFiles)
         globs: perGlob, sections: sections(t).map(({ text, ...s }) => s),
         when: scoped
             ? [
-                { how: "path_glob", text: "아래 경로에 맞는 파일을 Read · Edit · Write 로 처음 열 때 실립니다. 폴더가 아니라 파일의 경로를 봅니다.", globs },
-                { how: "append", text: "실릴 때는 대화의 뒤에 붙어서, 앞쪽에 이미 캐시된 부분은 그대로 다시 쓰입니다." },
+                { how: "path_glob", text: "아래 경로에 맞는 파일을 Read · Edit · Write 로 처음 열 때 로드됩니다. 폴더가 아니라 파일의 경로를 봅니다.", globs },
+                { how: "append", text: "로드될 때는 대화의 뒤에 붙어서, 앞쪽에 이미 캐시된 부분은 그대로 다시 쓰입니다." },
             ]
-            : [{ how: "session_start", text: "경로 조건이 없어서 루트 CLAUDE.md 와 똑같이 세션이 시작될 때 실립니다. 모든 요청의 앞쪽에 놓입니다." }],
+            : [{ how: "session_start", text: "경로 조건이 없어서 루트 CLAUDE.md 와 똑같이 세션이 시작될 때 로드됩니다. 모든 요청의 앞쪽에 들어갑니다." }],
         matchedFiles: scoped ? files.filter((x) => res.some((r) => new RegExp(r).test(x))).length : files.length,
     });
 }
@@ -149,8 +149,8 @@ for (const f of skillFiles)
         listingChars: chars(name) + chars(desc), chars: chars(body), lines: lines(body), level: 5,
         extraFiles: extra.length,
         when: [
-            { how: "skill_listing", text: `이름과 설명 ${chars(name) + chars(desc)}자는 세션이 시작될 때 늘 실립니다.` },
-            { how: "skill_invoke", text: "본문은 모델이 이 스킬을 부를 때만 실립니다. 부를지는 모델이 정합니다." },
+            { how: "skill_listing", text: `이름과 설명 ${chars(name) + chars(desc)}자는 세션이 시작될 때 항상 로드됩니다.` },
+            { how: "skill_invoke", text: "본문은 모델이 이 스킬을 호출할 때만 로드됩니다. 호출할지는 모델이 정합니다." },
         ],
     });
 }
@@ -164,13 +164,13 @@ for (const f of agentFiles)
         id: f, kind: "agent", path: f, title: name, name, description: String(fm.description ?? ""),
         listingChars: chars(name) + chars(String(fm.description ?? "")), chars: chars(body), lines: lines(body), level: 5,
         when: [
-            { how: "skill_listing", text: "이름과 설명은 세션이 시작될 때 늘 실립니다." },
-            { how: "agent_spawn", text: "본문은 이 서브에이전트가 띄워질 때 그 서브에이전트의 컨텍스트에만 실립니다." },
+            { how: "skill_listing", text: "이름과 설명은 세션이 시작될 때 항상 로드됩니다." },
+            { how: "agent_spawn", text: "본문은 이 서브에이전트가 실행될 때 그 서브에이전트의 컨텍스트에만 로드됩니다." },
         ],
     });
 }
 
-// 훅은 settings.json 이 선언합니다. 훅이 내는 글은 모델이 고르지 않아도 실립니다.
+// 훅은 settings.json 이 선언합니다. 훅이 내는 내용은 모델이 고르지 않아도 로드됩니다.
 for (const sf of [".claude/settings.json"])
 {
     if (!fileSet.has(sf)) continue;
@@ -189,16 +189,16 @@ for (const sf of [".claude/settings.json"])
                 add({
                     id, kind: "hook", path: script ?? sf, title: script ? basename(script) : event, event, matcher: g.matcher ?? null,
                     chars: script ? chars(read(script)) : 0, lines: script ? lines(read(script)) : 0, level: 3,
-                    when: [{ how: "hook_event", text: `\`${event}\`${g.matcher ? ` (${g.matcher})` : ""} 때 기계가 돌립니다. 이 스크립트가 내는 글이 컨텍스트에 실립니다.` }],
+                    when: [{ how: "hook_event", text: `\`${event}\`${g.matcher ? ` (${g.matcher})` : ""} 때 자동으로 실행됩니다. 이 스크립트가 내는 내용이 컨텍스트에 로드됩니다.` }],
                 });
             }
         }
     }
 }
 
-// ── 폴더 지시문의 절이 닿는 범위 ─────────────────────────────────────────
-// 폴더 지시문은 그 폴더의 어느 파일을 열어도 전부 실립니다. 절이 가리키는 경로가 폴더의 한 구석에 모여 있으면
-// 그 절은 다른 구석의 파일을 열 때도 함께 실리는 셈입니다. 그런 절을 찾아 「좁은 절」로 적어 둡니다.
+// ── 폴더 지시문의 섹션이 해당하는 범위 ─────────────────────────────────────────
+// 폴더 지시문은 그 폴더의 어느 파일을 열어도 전부 로드됩니다. 섹션이 참조하는 경로가 폴더의 한 곳에 모여 있으면
+// 그 섹션은 다른 곳의 파일을 열 때도 함께 로드되는 셈입니다. 그런 섹션을 찾아 「범위가 좁은 섹션」으로 적어 둡니다.
 const commonDir = (paths) =>
 {
     const split = paths.map((p) => (dirs.has(p) ? p : p.slice(0, p.lastIndexOf("/"))).split("/"));
@@ -227,7 +227,7 @@ for (const n of nodes.filter((x) => x.kind === "nested"))
 }
 
 // ── 간선 ─────────────────────────────────────────────────────────────────
-// hard 는 기계가 싣는 길이고 soft 는 모델이 글을 읽고 따라가야 하는 길입니다.
+// hard 는 자동으로 로드되는 경로이고 soft 는 모델이 문서를 읽고 따라가야 하는 경로입니다.
 const edges = [];
 const rootNode = nodes.find((n) => n.kind === "root");
 const nested = nodes.filter((n) => n.kind === "nested").sort((a, b) => a.dir.length - b.dir.length);
@@ -275,7 +275,7 @@ for (const e of edges) uniq.set(`${e.from}→${e.to}→${e.kind}`, e);
 edges.length = 0;
 edges.push(...uniq.values());
 
-// 지시문이 이름을 부른 스킬과 서브에이전트는 4단계로 올립니다. 스킬끼리 부른 것은 세지 않습니다.
+// 지시문이 이름을 언급한 스킬과 서브에이전트는 4단계로 높입니다. 스킬끼리 호출한 것은 세지 않습니다.
 for (const n of named)
 {
     const callers = edges.filter((e) => e.to === n.id && ["root", "nested", "rule"].includes(byId.get(e.from).kind)).map((e) => e.from);
@@ -283,7 +283,7 @@ for (const n of named)
     if (callers.length) n.level = 4;
 }
 
-// ── 파일마다 쌓이는 것 ───────────────────────────────────────────────────
+// ── 파일마다 누적되는 것 ───────────────────────────────────────────────────
 const isBinary = (f) => /\.(png|jpe?g|gif|svg|ico|woff2?|ttf|pdf|docx|xlsx|zip|lock)$/.test(f);
 const conditional = nodes.filter((n) => n.level === 2);
 const stackOf = (f) => conditional.filter((n) => n.kind === "nested" ? f.startsWith(n.dir) : n.globs.some((g) => new RegExp(g.re).test(f))).map((n) => n.id);
@@ -303,7 +303,7 @@ for (const f of src)
 const stacks = [...stackMap.values()].sort((a, b) => b.files - a.files).map((s) => ({ ...s, topDirs: Object.entries(s.topDirs).sort((a, b) => b[1] - a[1]).slice(0, 5) }));
 
 // ── 제안 ─────────────────────────────────────────────────────────────────
-// confidence: measured 는 파일에서 잰 사실이고, heuristic 은 글에서 짐작한 것이며, needs-test 는 시나리오로 재 봐야 합니다.
+// confidence: measured 는 파일에서 측정한 값이고, heuristic 은 추정한 것이며, needs-test 는 시나리오로 테스트해야 합니다.
 const suggestions = [];
 const alwaysChars = nodes.filter((n) => n.level === 1).reduce((a, n) => a + n.chars, 0) + named.reduce((a, n) => a + n.listingChars, 0);
 
@@ -315,8 +315,8 @@ for (const n of conditional)
         suggestions.push({
             id: `truncated:${n.id}`, kind: "truncation", severity: "high", confidence: "measured", targets: [n.id],
             title: `${n.title} 은 뒤쪽 ${(n.chars - LIMITS.onDemand200k).toLocaleString()}자가 잘립니다`,
-            evidence: `${n.chars.toLocaleString()}자인데 컨텍스트 20만 세션은 ${LIMITS.onDemand200k.toLocaleString()}자까지만 싣습니다.`,
-            action: "뒤쪽 절부터 경로 규칙이나 하위 폴더의 CLAUDE.md 로 옮깁니다.",
+            evidence: `${n.chars.toLocaleString()}자인데 컨텍스트 20만 세션은 ${LIMITS.onDemand200k.toLocaleString()}자까지만 로드됩니다.`,
+            action: "뒤쪽 섹션부터 경로 규칙이나 하위 폴더의 CLAUDE.md 로 옮깁니다.",
         });
     }
     else if (pct >= 0.85)
@@ -325,8 +325,8 @@ for (const n of conditional)
         suggestions.push({
             id: `cliff:${n.id}`, kind: "truncation", severity: pct >= 0.95 ? "high" : "medium", confidence: "measured", targets: [n.id],
             title: `${n.title} 은 잘리는 길이까지 ${(LIMITS.onDemand200k - n.chars).toLocaleString()}자 남았습니다`,
-            evidence: `${n.chars.toLocaleString()}자로 상한의 ${Math.round(pct * 100)}% 입니다. 넘으면 경고 없이 뒤쪽이 사라집니다. 가장 큰 절은 ${biggest.map((s) => `「${s.title}」 ${s.chars.toLocaleString()}자`).join(", ")} 입니다.`,
-            action: "가장 큰 절을 그 절이 다루는 폴더의 경로 규칙으로 옮겨 여유를 만듭니다.",
+            evidence: `${n.chars.toLocaleString()}자로 상한의 ${Math.round(pct * 100)}% 입니다. 넘으면 경고 없이 뒤쪽이 사라집니다. 가장 큰 섹션은 ${biggest.map((s) => `「${s.title}」 ${s.chars.toLocaleString()}자`).join(", ")} 입니다.`,
+            action: "가장 큰 섹션을 그 섹션이 다루는 폴더의 경로 규칙으로 옮겨 여유를 만듭니다.",
         });
     }
 }
@@ -345,9 +345,9 @@ if (rootNode)
         {
             suggestions.push({
                 id: `demote:${s.title}`, kind: "demote", severity: "medium", confidence: "heuristic", targets: [rootNode.id, covering[0].id],
-                title: `루트의 「${s.title}」 절은 ${covering[0].title} 규칙으로 내릴 수 있습니다`,
-                evidence: `이 절이 가리키는 경로 ${paths.length}곳이 모두 ${covering[0].title} 규칙의 범위 안입니다. 지금은 ${s.chars.toLocaleString()}자가 모든 세션에 실립니다.`,
-                action: `절을 \`${covering[0].path}\` 로 옮기고 루트에는 한 줄만 남깁니다.`,
+                title: `루트의 「${s.title}」 섹션은 ${covering[0].title} 규칙으로 옮길 수 있습니다`,
+                evidence: `이 섹션이 참조하는 경로 ${paths.length}곳이 모두 ${covering[0].title} 규칙의 범위 안입니다. 지금은 ${s.chars.toLocaleString()}자가 모든 세션에 로드됩니다.`,
+                action: `섹션을 \`${covering[0].path}\` 로 옮기고 루트에는 한 줄만 남깁니다.`,
                 saves: s.chars,
             });
         }
@@ -355,25 +355,25 @@ if (rootNode)
         {
             suggestions.push({
                 id: `ablate:${s.title}`, kind: "demote", severity: "low", confidence: "needs-test", targets: [rootNode.id],
-                title: `루트의 「${s.title}」 절이 늘 실리는 값을 하는지 재 봅니다`,
-                evidence: `루트의 ${Math.round(share * 100)}% (${s.chars.toLocaleString()}자) 를 차지합니다.${tops.length ? ` 가리키는 곳은 ${tops.slice(0, 4).join(", ")} 입니다.` : ""} 이 절이 모든 작업에 필요한지는 글만 읽어서는 알 수 없습니다.`,
-                action: "이 절을 뺀 채로 같은 시나리오를 돌려 결과가 달라지는지 봅니다. 달라지지 않는 단계는 경로 규칙이나 스킬로 내립니다.",
+                title: `루트의 「${s.title}」 섹션이 항상 로드할 필요가 있는지 테스트합니다`,
+                evidence: `루트의 ${Math.round(share * 100)}% (${s.chars.toLocaleString()}자) 를 차지합니다.${tops.length ? ` 참조하는 곳은 ${tops.slice(0, 4).join(", ")} 입니다.` : ""} 이 섹션이 모든 작업에 필요한지는 내용만 읽어서는 알 수 없습니다.`,
+                action: "이 섹션을 뺀 채로 같은 시나리오를 돌려 결과가 달라지는지 봅니다. 달라지지 않으면 경로 규칙이나 스킬로 옮깁니다.",
                 saves: s.chars,
             });
         }
     }
 }
 
-// 자리 옮기기. 폴더 지시문과 경로 규칙은 실리는 단위가 달라서(폴더 전체 · 경로 패턴) 맞지 않는 자리에 놓인 글을 찾습니다.
+// 위치 변경. 폴더 지시문과 경로 규칙은 로드 단위가 달라서(폴더 전체 · 경로 패턴) 맞지 않는 위치에 있는 내용을 찾습니다.
 for (const n of nodes.filter((x) => x.kind === "nested"))
 {
     for (const s of n.sections.filter((x) => x.narrow && x.chars >= 800 && x.narrow.share <= 0.5))
     {
         suggestions.push({
             id: `split:${n.id}:${s.title}`, kind: "placement", severity: s.chars >= 3000 ? "medium" : "low", confidence: "heuristic", targets: [n.id],
-            title: `${n.title} 의 「${s.title}」 절은 \`${s.narrow.dir.slice(n.dir.length)}/\` 에서만 쓰입니다`,
-            evidence: `이 절이 가리키는 경로 ${s.narrow.paths}곳이 모두 \`${s.narrow.dir}/\` 아래입니다. 그곳의 파일은 이 폴더의 ${Math.round(s.narrow.share * 100)}%(${s.narrow.files.toLocaleString()}개)인데, 지금은 폴더의 어느 파일을 열어도 ${s.chars.toLocaleString()}자가 함께 실립니다.`,
-            action: `절을 \`paths: ["${s.narrow.dir}/**"]\` 인 경로 규칙으로 옮깁니다. 다른 앱에도 같은 규약이 있으면 경로를 묶어 규칙 하나로 둡니다.`,
+            title: `${n.title} 의 「${s.title}」 섹션은 \`${s.narrow.dir.slice(n.dir.length)}/\` 에서만 쓰입니다`,
+            evidence: `이 섹션이 참조하는 경로 ${s.narrow.paths}곳이 모두 \`${s.narrow.dir}/\` 아래입니다. 그곳의 파일은 이 폴더의 ${Math.round(s.narrow.share * 100)}%(${s.narrow.files.toLocaleString()}개)인데, 지금은 폴더의 어느 파일을 열어도 ${s.chars.toLocaleString()}자가 함께 로드됩니다.`,
+            action: `섹션을 \`paths: ["${s.narrow.dir}/**"]\` 인 경로 규칙으로 옮깁니다. 다른 앱에도 같은 규약이 있으면 경로를 묶어 규칙 하나로 둡니다.`,
             saves: s.chars,
         });
     }
@@ -403,11 +403,11 @@ for (const g of [...dupGroups.values()].filter((x) => x.length >= 2))
     const folders = g.filter((s) => s.node.kind === "nested").map((s) => s.node.dir.replace(/\/$/, ""));
     suggestions.push({
         id: `dup:${g[0].title}:${g.map((s) => s.node.id).join("+")}`, kind: "placement", severity: total >= 4000 ? "medium" : "low", confidence: "measured", targets: [...new Set(g.map((s) => s.node.id))],
-        title: `「${g[0].title}」 절이 ${g.length}곳에 거의 같은 글로 있습니다`,
-        evidence: `${g.map((s) => `${s.node.title} ${s.chars.toLocaleString()}자`).join(", ")}. 줄의 절반 이상이 같습니다. 폴더를 넘나드는 세션에는 같은 글이 여러 번 실리고, 한 곳만 고치면 서로 어긋납니다.`,
+        title: `「${g[0].title}」 섹션이 ${g.length}곳에 거의 같은 내용으로 있습니다`,
+        evidence: `${g.map((s) => `${s.node.title} ${s.chars.toLocaleString()}자`).join(", ")}. 줄의 절반 이상이 같습니다. 폴더를 넘나드는 세션에는 같은 내용이 여러 번 로드되고, 한 곳만 고치면 서로 어긋납니다.`,
         action: folders.length >= 2
             ? `여러 폴더에 걸친 규약이므로 \`paths: ["{${folders.join(",")}}/**"]\` 처럼 경로를 묶은 규칙 하나로 옮기고, 폴더마다 다른 점만 그 폴더의 CLAUDE.md 에 남깁니다.`
-            : "한 곳에만 두고 다른 곳은 가리키는 한 줄로 바꿉니다.",
+            : "한 곳에만 두고 다른 곳은 참조하는 한 줄로 바꿉니다.",
         saves: total - Math.max(...g.map((s) => s.chars)),
     });
 }
@@ -417,8 +417,8 @@ for (const [title, g] of [...byTitle].filter(([, x]) => new Set(x.map((s) => s.n
 {
     suggestions.push({
         id: `same-topic:${title}`, kind: "placement", severity: "low", confidence: "heuristic", targets: [...new Set(g.map((s) => s.node.id))],
-        title: `「${title}」 절을 폴더 ${g.length}곳이 따로 적고 있습니다`,
-        evidence: `${g.map((s) => `${s.node.title} ${s.chars.toLocaleString()}자`).join(", ")}. 제목은 같고 글은 다릅니다. 같은 규약의 다른 사본인지, 폴더마다 정말 다른 규약인지는 읽어 봐야 압니다.`,
+        title: `「${title}」 섹션을 폴더 ${g.length}곳이 따로 적고 있습니다`,
+        evidence: `${g.map((s) => `${s.node.title} ${s.chars.toLocaleString()}자`).join(", ")}. 제목은 같고 내용은 다릅니다. 같은 규약의 다른 사본인지, 폴더마다 정말 다른 규약인지는 읽어 봐야 압니다.`,
         action: "같은 규약이면 공통 부분을 경로 규칙 하나로 모으고 폴더에는 차이만 남깁니다. 다른 규약이면 그대로 둡니다.",
     });
 }
@@ -427,8 +427,8 @@ for (const n of nodes.filter((x) => x.source === "rule-paths" && x.matchedFiles 
 {
     suggestions.push({
         id: `broad:${n.id}`, kind: "placement", severity: "low", confidence: "measured", targets: [n.id],
-        title: `${n.title} 규칙은 조건이 넓어 거의 늘 실립니다`,
-        evidence: `저장소 파일의 ${Math.round(n.matchedFiles / files.length * 100)}%(${n.matchedFiles.toLocaleString()}개)가 이 규칙의 경로에 맞습니다. 파일을 하나만 열어도 대개 실리므로 조건이 고르는 일을 거의 하지 않습니다.`,
+        title: `${n.title} 규칙은 조건이 넓어 거의 항상 로드됩니다`,
+        evidence: `저장소 파일의 ${Math.round(n.matchedFiles / files.length * 100)}%(${n.matchedFiles.toLocaleString()}개)가 이 규칙의 경로에 맞습니다. 파일을 하나만 열어도 대개 로드되므로 조건이 거의 걸러 내지 못합니다.`,
         action: "정말 모든 작업에 걸리는 글이면 짧게 줄여 루트에 두고, 아니면 경로를 그 규약이 실제로 걸리는 폴더나 파일 종류로 좁힙니다.",
     });
 }
@@ -436,8 +436,8 @@ for (const n of nodes.filter((x) => x.source === "rule-always"))
 {
     suggestions.push({
         id: `always-rule:${n.id}`, kind: "placement", severity: n.chars >= 2000 ? "medium" : "low", confidence: "needs-test", targets: [n.id],
-        title: `${n.title} 규칙은 경로 조건이 없어 늘 실립니다`,
-        evidence: `${n.chars.toLocaleString()}자가 루트 CLAUDE.md 와 같은 값으로 모든 세션에 실립니다. 파일만 나뉘어 있을 뿐 실리는 때는 루트와 같습니다.`,
+        title: `${n.title} 규칙은 경로 조건이 없어 항상 로드됩니다`,
+        evidence: `${n.chars.toLocaleString()}자가 루트 CLAUDE.md 와 같은 비용으로 모든 세션에 로드됩니다. 파일만 나뉘어 있을 뿐 로드되는 시점은 루트와 같습니다.`,
         action: "모든 작업에 걸리는 글인지 봅니다. 몇몇 파일에서만 걸리면 머리에 `paths` 를 적습니다.",
         saves: n.chars,
     });
@@ -449,7 +449,7 @@ for (const [from, list] of [...deadBySrc].sort((a, b) => b[1].length - a[1].leng
 {
     suggestions.push({
         id: `dead:${from}`, kind: "dead-ref", severity: byId.get(from).level === 1 ? "high" : "medium", confidence: "measured", targets: [from],
-        title: `${byId.get(from).title} 이 가리키는 경로 ${list.length}곳이 없습니다`,
+        title: `${byId.get(from).title} 이 참조하는 경로 ${list.length}곳이 없습니다`,
         evidence: list.slice(0, 6).map((p) => `\`${p}\``).join(", ") + (list.length > 6 ? ` 외 ${list.length - 6}곳` : ""),
         action: "옮겨진 곳으로 고치거나 지웁니다. 모델은 없는 경로를 찾느라 도구 호출을 씁니다.",
         items: list,
@@ -463,7 +463,7 @@ for (const n of nodes.filter((x) => x.kind === "rule"))
         suggestions.push({
             id: `zero:${n.id}:${g.glob}`, kind: "dead-glob", severity: "medium", confidence: "measured", targets: [n.id],
             title: `${n.title} 규칙의 \`${g.glob}\` 에 맞는 파일이 없습니다`,
-            evidence: "이 조건으로는 규칙이 실릴 일이 없습니다.", action: "경로를 고치거나 조건을 지웁니다.",
+            evidence: "이 조건으로는 규칙이 로드될 일이 없습니다.", action: "경로를 고치거나 조건을 지웁니다.",
         });
     }
 }
@@ -474,9 +474,9 @@ if (free.length)
     const freeChars = free.reduce((a, n) => a + n.listingChars, 0);
     suggestions.push({
         id: "free-skills", kind: "demote", severity: freeChars / alwaysChars >= 0.3 ? "high" : "medium", confidence: "needs-test", targets: free.map((n) => n.id),
-        title: `늘 실리는 글의 ${Math.round(freeChars / alwaysChars * 100)}% 는 아무도 부르지 않는 스킬 ${free.length}종의 설명입니다`,
-        evidence: `설명 ${freeChars.toLocaleString()}자가 모든 세션에 실리는데, 어느 지시문도 이 스킬들의 이름을 부르지 않습니다. 본문이 읽힐지는 모델이 설명만 보고 정합니다. 긴 것부터 ${free.slice(0, 3).map((n) => `\`${n.name}\` ${n.listingChars.toLocaleString()}자`).join(", ")} 입니다.`,
-        action: "기록과 시나리오에서 한 번도 불리지 않은 스킬을 고릅니다. 사람이 직접 부를 때만 쓰는 것은 `disable-model-invocation: true` 를 적어 목록에서 빼고, 안 쓰는 것은 지웁니다. 꼭 읽혀야 하는 것은 그 작업의 경로 규칙에서 이름을 부릅니다.",
+        title: `항상 로드되는 내용의 ${Math.round(freeChars / alwaysChars * 100)}% 는 아무 지시문도 언급하지 않는 스킬 ${free.length}종의 설명입니다`,
+        evidence: `설명 ${freeChars.toLocaleString()}자가 모든 세션에 로드되는데, 어느 지시문도 이 스킬들의 이름을 언급하지 않습니다. 본문이 읽힐지는 모델이 설명만 보고 정합니다. 긴 것부터 ${free.slice(0, 3).map((n) => `\`${n.name}\` ${n.listingChars.toLocaleString()}자`).join(", ")} 입니다.`,
+        action: "기록과 시나리오에서 한 번도 호출되지 않은 스킬을 고릅니다. 사람이 직접 호출할 때만 쓰는 것은 `disable-model-invocation: true` 를 적어 목록에서 빼고, 안 쓰는 것은 지웁니다. 꼭 읽혀야 하는 것은 그 작업의 경로 규칙에서 이름을 언급합니다.",
         items: free.map((n) => n.name), saves: freeChars,
     });
 }
@@ -495,7 +495,7 @@ if (bare && bare.files / src.length > 0.1)
 {
     suggestions.push({
         id: "bare-files", kind: "coverage", severity: "low", confidence: "measured", targets: [],
-        title: `파일 ${bare.files.toLocaleString()}개는 열어도 루트 말고 아무것도 실리지 않습니다`,
+        title: `파일 ${bare.files.toLocaleString()}개는 열어도 루트 말고 아무것도 로드되지 않습니다`,
         evidence: `전체의 ${Math.round(bare.files / src.length * 100)}% 입니다. 많은 곳은 ${bare.topDirs.map(([d, c]) => `${d} ${c.toLocaleString()}개`).join(", ")} 입니다.`,
         action: "규약이 필요한 폴더인지 보고, 필요하면 경로 규칙을 붙입니다. 필요 없으면 그대로 둡니다.",
     });
@@ -518,4 +518,4 @@ const map = {
 };
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify(map));
-console.log(`지도: 노드 ${nodes.length} · 간선 ${edges.length} · 제안 ${suggestions.length} · 늘 실리는 글 ${alwaysChars.toLocaleString()}자 → ${out}`);
+console.log(`맵: 노드 ${nodes.length} · 간선 ${edges.length} · 제안 ${suggestions.length} · 항상 로드되는 내용 ${alwaysChars.toLocaleString()}자 → ${out}`);

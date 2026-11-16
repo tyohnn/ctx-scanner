@@ -1,7 +1,7 @@
 // 보고서가 읽는 자료의 모양입니다. 스크립트(scan · lib-trace · run-scenario)가 이 모양으로 냅니다.
 export type Level = 1 | 2 | 3 | 4 | 5;
 export type Kind = "root" | "nested" | "rule" | "skill" | "agent" | "hook";
-// 지시문이 놓인 자리입니다. 폴더 지시문과 경로 규칙은 둘 다 조건이 맞을 때 실리지만 실리는 단위가 다릅니다(폴더 전체 · 경로 패턴).
+// 지시문의 위치입니다. 폴더 지시문과 경로 규칙은 둘 다 조건이 맞을 때 로드되지만 로드 단위가 다릅니다(폴더 전체 · 경로 패턴).
 export type Source = "root" | "folder" | "rule-always" | "rule-paths";
 
 export interface MapNode
@@ -54,18 +54,18 @@ export function loadReport(): Report | null
 }
 
 export const LEVELS: Record<Level, { label: string; short: string; who: string; color: string }> = {
-    1: { label: "늘 실림", short: "늘", who: "세션이 시작되면 기계가 싣습니다", color: "var(--lv1)" },
-    2: { label: "조건이 맞으면 실림", short: "조건", who: "맞는 파일을 열면 기계가 싣습니다", color: "var(--lv2)" },
-    3: { label: "훅이 강제", short: "훅", who: "사건이 나면 기계가 돌립니다", color: "var(--lv3)" },
-    4: { label: "지시문이 가리킴", short: "지시", who: "모델이 지시를 따라야 읽힙니다", color: "var(--lv4)" },
+    1: { label: "항상 로드", short: "항상", who: "세션이 시작되면 자동으로 로드됩니다", color: "var(--lv1)" },
+    2: { label: "조건부 로드", short: "조건", who: "맞는 파일을 열면 자동으로 로드됩니다", color: "var(--lv2)" },
+    3: { label: "훅이 강제", short: "훅", who: "이벤트가 발생하면 자동으로 실행됩니다", color: "var(--lv3)" },
+    4: { label: "지시문이 참조", short: "지시", who: "모델이 지시를 따라야 읽힙니다", color: "var(--lv4)" },
     5: { label: "모델이 고름", short: "자유", who: "모델이 설명만 보고 정합니다", color: "var(--lv5)" },
 };
 export const KIND_LABEL: Record<Kind, string> = { root: "루트 지시문", nested: "폴더 지시문", rule: "경로 규칙", skill: "스킬", agent: "서브에이전트", hook: "훅" };
-export const SOURCE_LABEL: Record<Source, string> = { root: "루트 지시문", folder: "폴더 지시문", "rule-always": "늘 실리는 규칙", "rule-paths": "경로 규칙" };
+export const SOURCE_LABEL: Record<Source, string> = { root: "루트 지시문", folder: "폴더 지시문", "rule-always": "항상 로드되는 규칙", "rule-paths": "경로 규칙" };
 export const kindLabel = (node: Pick<MapNode, "kind" | "source">) => node.source ? SOURCE_LABEL[node.source] : KIND_LABEL[node.kind];
 export const REASON_LABEL: Record<string, string> = {
     session_start: "세션 시작", nested_traversal: "폴더 진입", path_glob_match: "경로 일치", include: "@가져오기", compact: "압축 뒤 복원",
-    skill_invoke: "모델이 부름", agent_spawn: "모델이 띄움", startup: "새 세션", resume: "이어 하기",
+    skill_invoke: "모델이 호출", agent_spawn: "모델이 실행", startup: "새 세션", resume: "이어 하기",
 };
 export const ROW_COLOR: Record<RowKind, string> = {
     session: "var(--muted-foreground)", prompt: "var(--lv1)", instruction: "var(--lv2)", skill: "var(--lv4)", tool: "var(--lv5)", subagent: "var(--lv3)", compact: "var(--destructive)", stop: "var(--muted-foreground)",

@@ -60,14 +60,14 @@ function LaneNode({ data }: NodeProps<FlowNode<{ level?: Level; title: string; w
     );
 }
 
-// 모델이 골라야 가는 길은 점선으로 그립니다.
+// 모델이 골라야 이어지는 연결은 점선으로 그립니다.
 function SoftEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style }: EdgeProps)
 {
     const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
     return <BaseEdge id={id} path={path} style={{ strokeDasharray: "4 4", ...style }} />;
 }
 
-// 이 세션이 실제로 지나간 길에는 점 하나가 길을 따라 흐릅니다.
+// 이 세션이 실제로 지나간 연결에는 점 하나가 선을 따라 흐릅니다.
 function WalkedEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style }: EdgeProps)
 {
     const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
@@ -101,7 +101,7 @@ export function MapView({ map, trace, selected, onSelect }: Props)
         const l5 = of(["skill", "agent"], 5).sort((a, b) => (b.listingChars ?? 0) - (a.listingChars ?? 0));
         const listingChars = of(["skill", "agent"]).reduce((a, x) => a + (x.listingChars ?? 0), 0);
 
-        // 이 세션에서 실린 차례와 때를 노드에 붙입니다.
+        // 이 세션에서 로드된 순서와 시점를 노드에 붙입니다.
         const hit = new Map<string, { order: number; at: number }>();
         if (showTrace)
         {
@@ -131,7 +131,7 @@ export function MapView({ map, trace, selected, onSelect }: Props)
         const pseudo = (id: string, x: number, y: number, label: string, sub: string, kind: "trigger" | "listing", level?: Level) =>
             ns.push({ id, type: "ctx", position: { x, y }, data: { label, sub, limit, pseudo: kind, level, dim: selected ? "far" : false } satisfies CtxData });
 
-        lane("trig", X.trig, "일어나는 일", "무엇이 싣기를 일으키나");
+        lane("trig", X.trig, "트리거", "무엇이 로드를 시작하나");
         lane("l1", X.l1, LEVELS[1].label, LEVELS[1].who, 1);
         lane("nested", X.nested, LEVELS[2].label, "폴더 지시문", 2);
         lane("rules", X.rules, LEVELS[2].label, "경로 규칙", 2);
@@ -141,7 +141,7 @@ export function MapView({ map, trace, selected, onSelect }: Props)
         const hooksY = (rules.length + 1) * (H + GAP) + 40;
         pseudo("t:session", X.trig, 0, "세션 시작", "압축 뒤에도 다시", "trigger");
         pseudo("t:file", X.trig, 3 * (H + GAP), "파일을 읽거나 고칠 때", "Read · Edit · Write", "trigger");
-        if (hooks.length) pseudo("t:event", X.trig, hooksY, "도구를 쓰거나 응답이 끝날 때", "훅 사건", "trigger");
+        if (hooks.length) pseudo("t:event", X.trig, hooksY, "도구를 쓰거나 응답이 끝날 때", "훅 이벤트", "trigger");
         always.forEach((x, i) => put(x, X.l1, i));
         pseudo("listing", X.l1, always.length * (H + GAP), "스킬 · 서브에이전트 목록", `설명 ${l4.length + l5.length}개 · ${n(listingChars)}자`, "listing", 1);
         nested.forEach((x, i) => put(x, X.nested, i));
@@ -158,7 +158,7 @@ export function MapView({ map, trace, selected, onSelect }: Props)
         {
             const walked = showTrace && hit.has(to) && (kind !== "soft" || hit.has(from) || from === "listing");
             const near = selected ? from === selected || to === selected : true;
-            // 설명만 보고 고르는 길은 수가 많아서, 실제로 지나갔거나 그 스킬을 골랐을 때만 그립니다.
+            // 설명만 보고 고르는 연결은 수가 많아서, 실제로 지나갔거나 그 스킬을 골랐을 때만 그립니다.
             if (kind === "pick" && !walked && to !== selected) return;
             const faded = selected ? !near : showTrace ? !walked : false;
             es.push({
@@ -179,7 +179,7 @@ export function MapView({ map, trace, selected, onSelect }: Props)
             if (!ids.has(e.from) || !ids.has(e.to)) continue;
             const src = map.nodes.find((x) => x.id === e.from)!;
             const dst = map.nodes.find((x) => x.id === e.to)!;
-            // 그림에는 왼쪽에서 오른쪽으로 가는 길만 그립니다. 스킬끼리 부르는 길은 검사기에서 봅니다.
+            // 그림에는 왼쪽에서 오른쪽으로 가는 연결만 그립니다. 스킬끼리 호출하는 연결은 상세 패널에서 봅니다.
             if (e.kind === "soft" && ["root", "nested", "rule"].includes(src.kind) && ["skill", "agent"].includes(dst.kind))
             {
                 push(e.from, e.to, "soft");
@@ -202,12 +202,12 @@ export function MapView({ map, trace, selected, onSelect }: Props)
                 <Background bgColor="var(--canvas)" color="var(--border-strong)" />
                 <Controls showInteractive={false} position="bottom-left" className="gap-px overflow-hidden rounded-md border bg-card p-1 shadow-none! [&>button]:rounded-md [&>button]:border-none! [&>button]:bg-transparent! [&>button]:hover:bg-secondary!" />
                 <Panel position="bottom-center" className="m-3 flex overflow-hidden rounded-md border bg-card items-center gap-4 px-3 py-1.5 text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="currentColor" strokeWidth="1.5" /></svg>기계가 싣는 길</span>
-                    <span className="flex items-center gap-1.5"><svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3" /></svg>모델이 골라야 가는 길</span>
+                    <span className="flex items-center gap-1.5"><svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="currentColor" strokeWidth="1.5" /></svg>자동으로 로드되는 경로</span>
+                    <span className="flex items-center gap-1.5"><svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3" /></svg>모델이 선택하는 경로</span>
                     {trace && (
                         <label className="no-print flex cursor-pointer items-center gap-1.5 text-foreground">
                             <Switch checked={overlay} onCheckedChange={(v) => setOverlay(v)} />
-                            이 세션이 지나간 길 겹쳐 보기
+                            이 세션이 지나간 경로 겹쳐 보기
                         </label>
                     )}
                 </Panel>

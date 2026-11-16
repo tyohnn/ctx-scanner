@@ -1,7 +1,7 @@
 // 동작은 UI SDK 가 맡고, 모양은 graphite 의 3층 규칙이 맡습니다. 이 파일은 그 둘을 잇습니다.
 // UI SDK 부품에 tyohnn 과 같은 훅 클래스(cn-*)를 달고, tyohnn 이 부품의 TSX 에 두는 배치용 클래스를 함께 적습니다.
 // ⚠ 색 · 높이 · 모서리 · 그림자를 여기에 적지 않습니다. 그 값은 graphite/ 의 토큰과 규칙이 갖습니다.
-// ⚠ Base UI 와 상태 속성의 이름이 다른 자리(data-active ↔ data-selected · data-checked)는 여기와 report.css 에서 맞춥니다.
+// ⚠ Base UI 와 상태 속성의 이름이 다른 위치(data-active ↔ data-selected · data-checked)는 여기와 report.css 에서 맞춥니다.
 import { Input as InputPart } from "@ui-sdk/react/input";
 import { Meter as MeterPart, MeterIndicator, MeterTrack } from "@ui-sdk/react/meter";
 import { SegmentedControl, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
@@ -46,7 +46,7 @@ export function TabsContent({ className, ...props }: ComponentProps<typeof TabsP
     return <TabsPanel className={cn("cn-tabs-content flex-1 outline-none", className)} {...props} />;
 }
 
-// 몇 가지 가운데 하나를 고르는 줄입니다. 모양은 tyohnn 의 기본 탭 막대(회색 띠 위의 올라온 칸)를 읽습니다.
+// 몇 가지 가운데 하나를 고르는 줄입니다. 모양은 tyohnn 의 기본 탭 막대(회색 띠 위에 올라온 칸)를 읽습니다.
 export function Segmented<T extends string>({ label, value, onChange, items }: { label: string; value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode }[] })
 {
     return (

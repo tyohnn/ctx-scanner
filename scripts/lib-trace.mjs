@@ -1,7 +1,7 @@
-// 수집기가 적은 줄을 화면이 그리는 모양으로 고칩니다. 지도를 받으면 사건을 지도의 노드에 잇습니다.
+// 수집기가 적은 줄을 화면이 그리는 모양으로 고칩니다. 맵을 받으면 이벤트를 맵의 노드에 연결합니다.
 import { readFileSync } from "node:fs";
 
-// 지도에 없는 지시문(저장소 밖의 사용자 지시문 등)은 실린 까닭으로 출처를 짐작합니다.
+// 맵에 없는 지시문(저장소 밖의 사용자 지시문 등)은 로드된 이유로 출처를 추정합니다.
 const SOURCE_BY_REASON = { nested_traversal: "folder", path_glob_match: "rule-paths" };
 const READ_COMMANDS = new Set(["cat", "head", "tail", "sed", "grep", "rg", "less", "awk", "find", "ls", "wc"]);
 
@@ -72,8 +72,8 @@ export function readTrace(file, map)
             findings.push({
                 id: "bash-before-rules", severity: "medium",
                 title: `처음 ${Math.round(firstOnDemand.at / 1000)}초 동안 폴더 규약 없이 일했습니다`,
-                evidence: `그동안 Bash(${[...new Set(before.map((r) => r.target))].join(" · ")}) 로 ${before.length}번 살폈는데 규약은 하나도 실리지 않았습니다. 규약은 Read 도구로 \`${firstOnDemand.trigger ?? "파일"}\` 을 열었을 때 처음 실렸습니다.`,
-                action: "루트에 「파일은 Read 로 연다」를 한 줄 두거나, 훅으로 Bash 의 cat · grep 을 Read · Grep 으로 돌립니다. 그 뒤 같은 시나리오로 규약이 실리는 때가 당겨지는지 봅니다.",
+                evidence: `그동안 Bash(${[...new Set(before.map((r) => r.target))].join(" · ")}) 로 ${before.length}번 살폈는데 규약은 하나도 로드되지 않았습니다. 규약은 Read 도구로 \`${firstOnDemand.trigger ?? "파일"}\` 을 열었을 때 처음 로드됐습니다.`,
+                action: "루트에 「파일은 Read 로 연다」를 한 줄 두거나, 훅으로 Bash 의 cat · grep 을 Read · Grep 으로 돌립니다. 그 뒤 같은 시나리오로 규약이 로드되는 시점가 당겨지는지 봅니다.",
                 rows: before.map((r) => r.i),
             });
         }
@@ -81,8 +81,8 @@ export function readTrace(file, map)
     else if (out.some((r) => r.kind === "tool"))
     {
         findings.push({
-            id: "no-on-demand", severity: "low", title: "이 세션에서는 폴더 규약과 경로 규칙이 하나도 실리지 않았습니다",
-            evidence: "세션이 시작될 때 실린 것만으로 끝났습니다.", action: "규약이 필요한 작업이었다면 파일을 어떤 도구로 열었는지 봅니다.", rows: [],
+            id: "no-on-demand", severity: "low", title: "이 세션에서는 폴더 규약과 경로 규칙이 하나도 로드되지 않았습니다",
+            evidence: "세션이 시작될 때 로드된 것만으로 끝났습니다.", action: "규약이 필요한 작업이었다면 파일을 어떤 도구로 열었는지 봅니다.", rows: [],
         });
     }
     const big = [...onDemand].sort((a, b) => b.chars - a.chars)[0];
@@ -91,14 +91,14 @@ export function readTrace(file, map)
     {
         findings.push({
             id: "heavy-open", severity: "low",
-            title: `파일 몇 개를 열자 지시문 ${onDemandChars.toLocaleString()}자가 실렸습니다`,
-            evidence: `가장 큰 것은 \`${big.name}\` ${big.chars.toLocaleString()}자이고 \`${big.trigger ?? ""}\` 을 열 때 실렸습니다. 모두 ${onDemand.length}개입니다.`,
-            action: "큰 CLAUDE.md 는 절을 경로 규칙으로 나눠, 여는 파일에 맞는 절만 실리게 합니다.",
+            title: `파일 몇 개를 열자 지시문 ${onDemandChars.toLocaleString()}자가 로드됐습니다`,
+            evidence: `가장 큰 것은 \`${big.name}\` ${big.chars.toLocaleString()}자이고 \`${big.trigger ?? ""}\` 을 열 때 로드됐습니다. 모두 ${onDemand.length}개입니다.`,
+            action: "큰 CLAUDE.md 는 섹션을 경로 규칙으로 나눠, 여는 파일에 맞는 섹션만 로드되게 합니다.",
             rows: onDemand.map((r) => r.i),
         });
     }
 
-    // 폴더 지시문은 통째로 실립니다. 좁은 절(폴더의 한 구석만 다루는 절) 가운데 이 세션이 그 구석을 열지 않은 것을 셉니다.
+    // 폴더 지시문은 통째로 로드됩니다. 범위가 좁은 섹션(폴더의 한 곳만 다루는 섹션) 가운데 이 세션이 그곳을 열지 않은 것을 셉니다.
     const opened = [...new Set(out.flatMap((r) => [r.trigger, ["Read", "Edit", "Write"].includes(r.name) ? r.target : null, ...(r.reads ?? [])]).filter(Boolean))];
     const idle = [];
     for (const r of onDemand.filter((x) => x.source === "folder" && x.nodeId))
@@ -114,9 +114,9 @@ export function readTrace(file, map)
         idle.sort((a, b) => b.chars - a.chars);
         findings.push({
             id: "idle-sections", severity: idleChars >= 8000 ? "medium" : "low",
-            title: `폴더 지시문에서 이 세션이 열지 않은 곳의 절 ${idleChars.toLocaleString()}자가 함께 실렸습니다`,
-            evidence: `${idle.slice(0, 4).map((s) => `${s.node} 「${s.title}」 ${s.chars.toLocaleString()}자(\`${s.dir}/\`)`).join(", ")}${idle.length > 4 ? ` 외 ${idle.length - 4}개` : ""}. 폴더 지시문은 그 폴더의 어느 파일을 열어도 전부 실리기 때문입니다. 경로 규칙이었다면 실리지 않았을 글입니다.`,
-            action: "이 절들을 그 경로의 규칙으로 옮기면 그곳의 파일을 열 때만 실립니다.",
+            title: `폴더 지시문에서 이 세션이 열지 않은 곳의 섹션 ${idleChars.toLocaleString()}자가 함께 로드됐습니다`,
+            evidence: `${idle.slice(0, 4).map((s) => `${s.node} 「${s.title}」 ${s.chars.toLocaleString()}자(\`${s.dir}/\`)`).join(", ")}${idle.length > 4 ? ` 외 ${idle.length - 4}개` : ""}. 폴더 지시문은 그 폴더의 어느 파일을 열어도 전부 로드되기 때문입니다. 경로 규칙이었다면 로드되지 않았을 내용입니다.`,
+            action: "이 섹션들을 그 경로의 규칙으로 옮기면 그곳의 파일을 열 때만 로드됩니다.",
             rows: [...new Set(idle.map((s) => s.row))],
         });
     }

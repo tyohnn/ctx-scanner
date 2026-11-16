@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
 
 const GROUPS: { key: string; label: string; kinds: string[] }[] = [
     { key: "all", label: "전체", kinds: [] },
-    { key: "demote", label: "늘 실리는 곳에서 빼기", kinds: ["demote"] },
-    { key: "placement", label: "자리 옮기기", kinds: ["placement"] },
-    { key: "truncation", label: "잘리는 글", kinds: ["truncation"] },
-    { key: "broken", label: "끊긴 길", kinds: ["dead-ref", "dead-glob"] },
+    { key: "demote", label: "항상 로드되는 내용 줄이기", kinds: ["demote"] },
+    { key: "placement", label: "위치 변경", kinds: ["placement"] },
+    { key: "truncation", label: "잘리는 내용", kinds: ["truncation"] },
+    { key: "broken", label: "깨진 참조", kinds: ["dead-ref", "dead-glob"] },
     { key: "intent", label: "규약이 닿지 않는 곳", kinds: ["coverage"] },
     { key: "trace", label: "세션에서 본 것", kinds: ["trace"] },
 ];
@@ -31,12 +31,12 @@ export function AdviceView({ map, trace, onSelect }: Props)
     const kinds = GROUPS.find((g) => g.key === group)!.kinds;
     const shown = all.filter((s) => !kinds.length || kinds.includes(s.kind)).sort((a, b) => order[a.severity] - order[b.severity]);
 
-    // 늘 실리는 글을 무엇이 차지하는지 한 줄로 폅니다. 루트의 절과 스킬 설명이 같은 자리를 나눠 씁니다.
-    const verdict = (title: string) => all.find((s) => s.id === `demote:${title}`) ? "내릴 수 있음" : all.find((s) => s.id === `ablate:${title}`) ? "재 볼 것" : null;
+    // 항상 로드되는 내용을 무엇이 차지하는지 한 줄로 보여 줍니다. 루트의 섹션과 스킬 설명이 같은 공간을 나눠 씁니다.
+    const verdict = (title: string) => all.find((s) => s.id === `demote:${title}`) ? "옮길 수 있음" : all.find((s) => s.id === `ablate:${title}`) ? "테스트 필요" : null;
     const parts = [
         ...(root?.sections ?? []).map((s) => ({ key: s.title, label: s.title, chars: s.chars, color: "var(--lv1)", verdict: verdict(s.title), group: "루트 지시문" })),
-        { key: "named", label: `지시문이 부르는 스킬 · 서브에이전트 설명 ${listed.filter((x) => x.level === 4).length}개`, chars: named, color: "var(--lv4)", verdict: null, group: "스킬 목록" },
-        { key: "free", label: `아무도 안 부르는 스킬 · 서브에이전트 설명 ${listed.filter((x) => x.level === 5).length}개`, chars: free, color: "var(--lv5)", verdict: all.some((s) => s.id === "free-skills") ? "뺄 수 있음" : null, group: "스킬 목록" },
+        { key: "named", label: `지시문이 언급하는 스킬 · 서브에이전트 설명 ${listed.filter((x) => x.level === 4).length}개`, chars: named, color: "var(--lv4)", verdict: null, group: "스킬 목록" },
+        { key: "free", label: `아무 지시문도 언급하지 않는 스킬 · 서브에이전트 설명 ${listed.filter((x) => x.level === 5).length}개`, chars: free, color: "var(--lv5)", verdict: all.some((s) => s.id === "free-skills") ? "뺄 수 있음" : null, group: "스킬 목록" },
     ].filter((p) => p.chars > 0);
     const total = parts.reduce((a, p) => a + p.chars, 0);
 
@@ -46,8 +46,8 @@ export function AdviceView({ map, trace, onSelect }: Props)
                 <div className="cn-card gap-0 p-4">
                     <div className="flex items-baseline justify-between">
                         <div>
-                            <div className="text-sm font-semibold">모든 세션이 치르는 값</div>
-                            <div className="text-xs text-muted-foreground">어떤 일을 시키든 처음부터 실리는 글입니다. 여기서 뺀 만큼 모든 세션이 가벼워집니다.</div>
+                            <div className="text-sm font-semibold">모든 세션에 드는 비용</div>
+                            <div className="text-xs text-muted-foreground">어떤 일을 시키든 처음부터 로드되는 내용입니다. 여기서 뺀 만큼 모든 세션이 가벼워집니다.</div>
                         </div>
                         <Chars value={map.meta.alwaysChars} className="text-xl font-semibold" />
                     </div>
@@ -81,7 +81,7 @@ export function AdviceView({ map, trace, onSelect }: Props)
                                 <span className="inline-block size-2 rounded-full" style={{ background: SEVERITY[s.severity].color }} />
                                 <span>{SEVERITY[s.severity].label}</span>
                                 {s.confidence && <span className="cn-badge cn-badge-variant-secondary inline-flex shrink-0 items-center whitespace-nowrap" title={CONFIDENCE[s.confidence].hint}>{CONFIDENCE[s.confidence].label}</span>}
-                                {s.saves ? <span className="num ml-auto text-foreground">{s.kind === "placement" && !s.id.startsWith("always-rule:") ? "조건이 맞을 때 실리는 글" : "늘 실리는 글"} −{n(s.saves)}자</span> : null}
+                                {s.saves ? <span className="num ml-auto text-foreground">{s.kind === "placement" && !s.id.startsWith("always-rule:") ? "조건이 맞을 때 로드되는 내용" : "항상 로드되는 내용"} −{n(s.saves)}자</span> : null}
                             </div>
                             <h3 className="mt-1.5 text-sm font-semibold leading-snug"><Marked text={s.title} /></h3>
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><Marked text={s.evidence} /></p>
@@ -108,7 +108,7 @@ export function AdviceView({ map, trace, onSelect }: Props)
     );
 }
 
-// 스크립트가 낸 글의 백틱 구간을 코드 글꼴로 바꿉니다.
+// 스크립트가 낸 내용의 백틱 구간을 코드 글꼴로 바꿉니다.
 function Marked({ text }: { text: string })
 {
     return <>{text.split("`").map((part, i) => i % 2 ? <code key={i} className="num rounded bg-muted px-1 text-[0.92em] text-foreground">{part}</code> : part)}</>;

@@ -36,7 +36,7 @@ function ScenarioCard({ s, onOpenTrace }: { s: Scenario; onOpenTrace: (session: 
                     </div>
                     <h3 className="mt-1 text-sm font-semibold leading-snug">{s.hypothesis}</h3>
                     <div className="mt-2 flex flex-wrap gap-1">
-                        {expects.map((e) => <span key={e.label + e.want} className="num cn-badge cn-badge-variant-secondary inline-flex shrink-0 items-center whitespace-nowrap">{e.want ? "실려야 함" : "실리면 안 됨"} · {e.label}</span>)}
+                        {expects.map((e) => <span key={e.label + e.want} className="num cn-badge cn-badge-variant-secondary inline-flex shrink-0 items-center whitespace-nowrap">{e.want ? "로드되어야 함" : "로드되면 안 됨"} · {e.label}</span>)}
                     </div>
                 </div>
                 <div className="shrink-0 text-right">
@@ -52,14 +52,14 @@ function ScenarioCard({ s, onOpenTrace }: { s: Scenario; onOpenTrace: (session: 
                         {r.pass ? <Check className="size-3.5" style={{ color: "var(--lv4)" }} /> : <X className="size-3.5" style={{ color: "var(--destructive)" }} />}
                         <span className="truncate">「{r.prompt}」</span>
                         <span className={cn("num truncate text-[11px]", r.missed.length ? "" : "text-muted-foreground")} style={r.missed.length ? { color: "var(--destructive)" } : undefined}>
-                            {r.missed.length ? `빠짐 ${r.missed.join(", ")}` : `실림 ${r.hit.join(", ") || "없음"}`}
+                            {r.missed.length ? `빠짐 ${r.missed.join(", ")}` : `로드 ${r.hit.join(", ") || "없음"}`}
                         </span>
                         <span className="num text-right text-[11px] text-muted-foreground">{r.firstLoadAt != null ? `+${secs(r.firstLoadAt)}` : ""}</span>
                         <span className="num text-right text-[11px] text-muted-foreground">{secs(r.duration)}</span>
                     </button>
                 ))}
             </div>
-            <div className="px-4 py-2 text-[11px] text-muted-foreground">줄을 누르면 그 세션의 기록이 열립니다. 넷째 칸은 기대한 것이 처음 실린 때이고 마지막 칸은 세션이 걸린 시간입니다. 표본 {n(s.runs.length)}번의 비율이라 경향으로만 읽습니다.</div>
+            <div className="px-4 py-2 text-[11px] text-muted-foreground">줄을 누르면 그 세션의 기록이 열립니다. 넷째 칸은 기대한 것이 처음 로드된 시점이고 마지막 칸은 세션이 걸린 시간입니다. 표본 {n(s.runs.length)}번의 비율이라 경향으로만 읽습니다.</div>
         </article>
     );
 }

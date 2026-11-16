@@ -23,7 +23,7 @@
     --lv4: var(--tag-green-fg);
     --lv5: var(--tag-gray-fg);
 
-    /* 폭포의 줄은 표의 줄(41px)보다 낮아야 한 화면에 사건이 많이 들어옵니다. 컨트롤 하나의 높이로 둡니다. */
+    /* 폭포의 줄은 표의 줄(41px)보다 낮아야 한 화면에 이벤트가 많이 들어옵니다. 컨트롤 하나의 높이로 둡니다. */
     --waterfall-row-height: var(--control-height-md);
     --waterfall-head-height: var(--table-head-height-compact);
     --waterfall-bar-height: 10px;
@@ -47,7 +47,7 @@ body {
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
 
-/* ── UI SDK 와 Base UI 의 상태 속성 이름이 다른 자리 ──
+/* ── UI SDK 와 Base UI 의 상태 속성 이름이 다른 위치 ──
    graphite 의 규칙은 Base UI 의 이름으로 적혀 있습니다. 이름이 다른 둘만 같은 토큰으로 이어 줍니다. */
 .cn-tabs-list:not([data-variant="line"]) .cn-tabs-trigger:is([data-selected], [data-checked]) {
     box-shadow: var(--tabs-trigger-active-shadow);

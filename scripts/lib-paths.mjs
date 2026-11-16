@@ -1,4 +1,4 @@
-// 자료가 놓이는 자리를 한 곳에서 정합니다. 저장소 안에 두지 않아서 깃이 더러워지지 않습니다.
+// 자료를 저장하는 위치를 한 곳에서 정합니다. 저장소 안에 두지 않아서 git 작업 트리가 바뀌지 않습니다.
 // CTXSCOPE_DIR 를 주면 그곳을 쓰고, 아니면 플러그인의 자료 폴더 아래에 저장소마다 한 칸을 둡니다.
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";

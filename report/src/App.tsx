@@ -14,7 +14,7 @@ import { TimelineView } from "@/views/TimelineView";
 
 type Tab = "map" | "timeline" | "files" | "tests" | "advice";
 
-// 주소의 # 뒤에 보던 자리를 적어 둡니다. 보고서를 다시 열거나 남에게 건넬 때 같은 화면이 뜹니다.
+// 주소의 # 뒤에 보던 위치를 적어 둡니다. 보고서를 다시 열거나 남에게 건넬 때 같은 화면이 뜹니다.
 function readHash()
 {
     const p = new URLSearchParams(location.hash.slice(1));
@@ -42,7 +42,7 @@ export function App()
 
     if (!report)
     {
-        return <div className="grid h-full place-items-center text-muted-foreground">이 문서에는 아직 자료가 없습니다. ctxscope 스킬이 지도를 만들어 채웁니다.</div>;
+        return <div className="grid h-full place-items-center text-muted-foreground">이 문서에는 아직 자료가 없습니다. ctxscope 스킬이 맵을 만들어 채웁니다.</div>;
     }
 
     const { map, traces, tests } = report;
@@ -51,8 +51,8 @@ export function App()
     const count = (kind: string) => map.nodes.filter((x) => x.kind === kind).length;
     const alwaysRules = map.nodes.filter((x) => x.source === "rule-always").length;
     const tabs: { key: Tab; label: string; badge?: string | number; show: boolean }[] = [
-        { key: "map", label: "지도", show: true },
-        { key: "timeline", label: "기록", badge: traces.length || undefined, show: traces.length > 0 },
+        { key: "map", label: "맵", show: true },
+        { key: "timeline", label: "타임라인", badge: traces.length || undefined, show: traces.length > 0 },
         { key: "files", label: "파일", show: true },
         { key: "tests", label: "시나리오", badge: tests?.scenarios.length, show: !!tests },
         { key: "advice", label: "제안", badge: map.suggestions.length + (trace?.findings.length ?? 0), show: true },
@@ -75,10 +75,10 @@ export function App()
                         ))}
                     </TabsList>
                     <div className="ml-auto flex items-center gap-4 text-[11px] text-muted-foreground">
-                        <span>늘 실리는 글 <Chars value={map.meta.alwaysChars} className="text-foreground" /></span>
+                        <span>항상 로드되는 내용 <Chars value={map.meta.alwaysChars} className="text-foreground" /></span>
                         <span>폴더 지시문 <span className="num text-foreground">{count("nested")}</span></span>
                         <span>경로 규칙 <span className="num text-foreground">{count("rule") - alwaysRules}</span></span>
-                        {alwaysRules > 0 && <span>늘 실리는 규칙 <span className="num text-foreground">{alwaysRules}</span></span>}
+                        {alwaysRules > 0 && <span>항상 로드되는 규칙 <span className="num text-foreground">{alwaysRules}</span></span>}
                         <span>스킬 <span className="num text-foreground">{count("skill")}</span></span>
                         <span>파일 <span className="num text-foreground">{n(map.meta.files)}</span></span>
                         {traces.length > 1 && (

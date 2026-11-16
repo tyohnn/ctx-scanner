@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 const FILTERS: { key: string; label: string; kinds: RowKind[] | null }[] = [
     { key: "all", label: "전체", kinds: null },
-    { key: "context", label: "컨텍스트에 실린 것", kinds: ["instruction", "skill", "prompt"] },
+    { key: "context", label: "컨텍스트에 로드된 것", kinds: ["instruction", "skill", "prompt"] },
     { key: "instruction", label: "지시문", kinds: ["instruction"] },
     { key: "skill", label: "스킬", kinds: ["skill"] },
     { key: "tool", label: "도구", kinds: ["tool"] },
@@ -20,7 +20,7 @@ const FILTERS: { key: string; label: string; kinds: RowKind[] | null }[] = [
 ];
 const ZOOMS = [{ value: "all", label: "전체" }, { value: "30", label: "첫 30초" }, { value: "10", label: "첫 10초" }];
 const GRID = "grid grid-cols-[minmax(220px,1.4fr)_76px_84px_minmax(120px,1fr)_72px_64px_minmax(260px,2.2fr)] items-center";
-// 눈금은 둥근 때에 서므로 소수 없이 적습니다.
+// 눈금은 딱 떨어지는 시각에 놓이므로 소수 없이 적습니다.
 const axisTime = (ms: number) => ms === 0 ? "0" : ms % 1000 ? secs(ms) : ms < 60000 ? `${ms / 1000}초` : `${Math.floor(ms / 60000)}분${ms % 60000 ? ` ${ms % 60000 / 1000}초` : ""}`;
 const idOf = (r: TraceRow) => `r${r.i}`;
 
@@ -75,11 +75,11 @@ export function TimelineView({ trace, selected, onSelect }: Props)
     const [expanded, setExpanded] = useState(() => trace.rows.filter((r) => r.kind === "subagent").map(idOf));
     const shown = visibleWaterfallRows(items, expanded);
     const prompt = trace.rows.find((r) => r.kind === "prompt");
-    // 지도나 검사기에서 고른 파일이 이 기록에 있으면 그 줄을 고른 것으로 보입니다.
+    // 맵이나 상세 패널에서 고른 파일이 이 기록에 있으면 그 줄을 고른 것으로 보입니다.
     const fromNode = selected ? rows.find((r) => r.nodeId === selected) : undefined;
     const value = picked && (byValue.get(picked)?.nodeId ?? null) === selected ? picked : fromNode ? idOf(fromNode) : null;
 
-    // 위쪽 띠는 그때까지 컨텍스트에 쌓인 글자 수를 계단으로 그립니다. 지시문과 도구 결과를 나눠 쌓습니다.
+    // 위쪽 띠는 그때까지 컨텍스트에 누적된 글자 수를 계단으로 그립니다. 지시문과 도구 결과를 나눠 표시합니다.
     const strip = useMemo(() =>
     {
         let instr = 0;
@@ -112,7 +112,7 @@ export function TimelineView({ trace, selected, onSelect }: Props)
     return (
         <div className="flex h-full flex-col">
             <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
-                <Segmented label="보일 사건" value={filter} onChange={setFilter} items={FILTERS.map((f) => ({ value: f.key, label: f.label }))} />
+                <Segmented label="보일 이벤트" value={filter} onChange={setFilter} items={FILTERS.map((f) => ({ value: f.key, label: f.label }))} />
                 {D > 30000 && <Segmented label="보는 구간" value={zoom} onChange={setZoom} items={ZOOMS} />}
                 <Input aria-label="이름이나 경로로 거르기" value={query} onValueChange={(v) => setQuery(v)} placeholder="이름이나 경로로 거르기" className="no-print w-52" />
                 {trace.prompt?.preview && <span className="ml-auto max-w-[36%] truncate text-xs text-muted-foreground">요청 「{trace.prompt.preview}」</span>}
@@ -136,10 +136,10 @@ export function TimelineView({ trace, selected, onSelect }: Props)
 
             <div className={cn(GRID, "border-b bg-secondary pl-2.5 pr-5 text-[11px] text-muted-foreground")}>
                 <div className="col-span-6 py-1.5">
-                    쌓인 글 <span className="num text-foreground">{n(strip.instr + strip.tool)}자</span>
+                    누적 컨텍스트 <span className="num text-foreground">{n(strip.instr + strip.tool)}자</span>
                     <span className="ml-2 inline-block size-2 rounded-sm align-middle" style={{ background: "var(--lv2)" }} /> 지시문 · 스킬 <span className="num">{n(strip.instr)}</span>
                     <span className="ml-2 inline-block size-2 rounded-sm align-middle" style={{ background: "var(--lv5)" }} /> 도구 결과 <span className="num">{n(strip.tool)}</span>
-                    <span className="ml-2">(글자 수로 어림한 값)</span>
+                    <span className="ml-2">(글자 수로 추정한 값)</span>
                 </div>
                 <svg viewBox="0 0 1000 100" preserveAspectRatio="none" className="ml-3 h-12 w-[calc(100%-12px)]" aria-hidden="true">
                     <path d={strip.total} fill="var(--lv5)" opacity="0.35" />
@@ -158,8 +158,8 @@ export function TimelineView({ trace, selected, onSelect }: Props)
                 <WaterfallHeaderRow className={cn(GRID, "cx-waterfall-head sticky top-0 z-10")}>
                     <WaterfallColumnHeader>이름</WaterfallColumnHeader>
                     <WaterfallColumnHeader>종류</WaterfallColumnHeader>
-                    <WaterfallColumnHeader>까닭</WaterfallColumnHeader>
-                    <WaterfallColumnHeader>일으킨 것</WaterfallColumnHeader>
+                    <WaterfallColumnHeader>이유</WaterfallColumnHeader>
+                    <WaterfallColumnHeader>트리거</WaterfallColumnHeader>
                     <WaterfallColumnHeader className="text-right">크기</WaterfallColumnHeader>
                     <WaterfallColumnHeader className="text-right">때</WaterfallColumnHeader>
                     <WaterfallColumnHeader aria-label="시간" className="relative ml-3 h-full">
@@ -220,13 +220,13 @@ export function TimelineView({ trace, selected, onSelect }: Props)
             </Waterfall>
 
             <div className="flex items-center gap-4 border-t bg-secondary px-3 py-1.5 text-[11px] text-muted-foreground">
-                <span>사건 <span className="num text-foreground">{rows.length}</span> / {trace.rows.length}</span>
+                <span>이벤트 <span className="num text-foreground">{rows.length}</span> / {trace.rows.length}</span>
                 {trace.totals.bySource
                     ? (["root", "folder", "rule-always", "rule-paths"] as const).filter((k) => trace.totals.bySource![k]).map((k) => (
                         <span key={k}>{SOURCE_LABEL[k]} <span className="num text-foreground">{trace.totals.bySource![k].count}</span>개 · <span className="num text-foreground">{n(trace.totals.bySource![k].chars)}</span>자</span>
                     ))
-                    : <span>실린 지시문 <span className="num text-foreground">{trace.totals.instructions}</span>개 · <span className="num text-foreground">{n(trace.totals.instructionChars)}</span>자</span>}
-                <span>부른 스킬 <span className="text-foreground">{trace.totals.skills.length ? trace.totals.skills.join(", ") : "없음"}</span></span>
+                    : <span>로드된 지시문 <span className="num text-foreground">{trace.totals.instructions}</span>개 · <span className="num text-foreground">{n(trace.totals.instructionChars)}</span>자</span>}
+                <span>호출한 스킬 <span className="text-foreground">{trace.totals.skills.length ? trace.totals.skills.join(", ") : "없음"}</span></span>
                 <span>도구 <span className="num text-foreground">{trace.totals.tools}</span>번</span>
                 <span>걸린 시간 <span className="num text-foreground">{secs(trace.duration)}</span></span>
                 <span className="num ml-auto">{trace.session.slice(0, 8)}</span>

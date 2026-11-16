@@ -70,7 +70,7 @@ const scenarios = spec.scenarios.map((s) =>
         return {
             session: job.session, variant: job.variant, prompt: job.prompt,
             pass: want.every(([, ok]) => ok) && ban.every(([, hit]) => !hit),
-            hit: [...want.filter(([, ok]) => ok).map(([x]) => x)], missed: [...want.filter(([, ok]) => !ok).map(([x]) => x), ...ban.filter(([, hit]) => hit).map(([x]) => `${x} (실리면 안 됨)`)],
+            hit: [...want.filter(([, ok]) => ok).map(([x]) => x)], missed: [...want.filter(([, ok]) => !ok).map(([x]) => x), ...ban.filter(([, hit]) => hit).map(([x]) => `${x} (로드되면 안 됨)`)],
             firstLoadAt: first.length ? Math.min(...first) : null, duration: t.duration,
         };
     });
