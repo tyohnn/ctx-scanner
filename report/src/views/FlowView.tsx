@@ -67,18 +67,26 @@ export function FlowView({ map, filter, onFilter, onSelect }: Props)
     // 회로도로 펼칠 칸: 고른 칸, 아니면 고른 영역에서 파일이 가장 많은 칸, 아니면 요약 화면의 첫 줄과 같은 칸(테스트를 뺀 가장 무거운 칸)입니다.
     const cell = useMemo(() =>
     {
-        if (filter.scope) return flows.find((f) => f.area === filter.area && f.scope === filter.scope);
+        if (filter.area && filter.scope) return flows.find((f) => f.area === filter.area && f.scope === filter.scope);
         if (filter.area) return flows.filter((f) => f.area === filter.area).sort((a, b) => b.files - a.files)[0];
-        return flows.filter((f) => f.area !== "test").sort((a, b) => cellChars(b) - cellChars(a))[0];
+        const pool = flows.filter((f) => f.area !== "test" && (!filter.scope || f.scope === filter.scope));
+        return pool.sort((a, b) => cellChars(b) - cellChars(a))[0];
     }, [flows, filter]);
     const circuit = useMemo(() => cell ? buildCircuit(map, cell) : null, [map, cell]);
+    // 위치 칩: 영역을 골랐으면 그 영역에 있는 위치만, 아니면 모든 위치입니다. 앱을 먼저, 그 안에서는 파일이 많은 순서입니다.
+    const scopes = useMemo(() =>
+    {
+        const files = new Map<string, number>();
+        for (const f of flows) if (!filter.area || f.area === filter.area) files.set(f.scope, (files.get(f.scope) ?? 0) + f.files);
+        return [...files].sort((a, b) => Number(b[0].startsWith("apps/")) - Number(a[0].startsWith("apps/")) || b[1] - a[1]);
+    }, [flows, filter.area]);
 
     if (!flows.length) return <div className="grid h-full place-items-center text-xs text-muted-foreground">이 맵에는 플로우가 없습니다. 맵을 다시 만들면 채워집니다.</div>;
 
     const { layout, height, areaFiles } = graph;
     const describe = () =>
     {
-        if (!hover) return "마디나 선에 마우스를 올리면 그 길만 남고 나머지는 흐려집니다. 왼쪽 영역을 누르면 그 영역의 흐름만 보고, 아래 회로도도 그 영역으로 바뀝니다.";
+        if (!hover) return "마디나 선에 마우스를 올리면 그 길만 남고 나머지는 흐려집니다. 왼쪽 영역을 누르거나 위에서 영역 · 위치를 고르면 흐름 그림과 아래 회로도가 함께 바뀝니다.";
         if (hover.link) { const l = hover.link; return `${endOf(l.source).label} → ${endOf(l.target).label} · ${KIND_NAME[l.kind]} · 파일 ${n(l.value)}개`; }
         const d = hover.node!;
         const len = d.ref ? map.nodes.find((x) => x.id === d.ref)?.chars : undefined;
@@ -97,18 +105,35 @@ export function FlowView({ map, filter, onFilter, onSelect }: Props)
                     <h2 className="text-sm font-semibold">파일을 열면 컨텍스트가 어디로 이어지나</h2>
                     <p className="mt-0.5 max-w-[80ch] text-xs text-muted-foreground">굵기는 그 연결을 지나는 파일 수입니다. 실선은 자동 로드, 굵은 점선은 규칙의 「엽니다」 지시, 가는 점선은 CLAUDE.md 색인의 안내, 붉은 가지는 있어야 할 지시문이 없는 곳(OPEN)입니다.</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="영역 고르기">
-                    {[{ id: null as string | null, label: "전체" }, ...areas].map((a) => (
-                        <button
-                            key={a.id ?? "all"} type="button" aria-pressed={filter.area === a.id && !filter.scope}
-                            onClick={() => onFilter({ ...filter, area: a.id, scope: null })}
-                            className={cn("cn-button cn-button-size-xs inline-flex cursor-pointer items-center whitespace-nowrap", filter.area === a.id ? "cn-button-variant-secondary" : "cn-button-variant-ghost")}
-                        >{a.label}</button>
-                    ))}
-                    <label className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground">
-                        <Switch aria-label="공통 규칙도 보기" checked={filter.common} onCheckedChange={(v) => onFilter({ ...filter, common: v })} />
-                        공통 규칙도 보기
-                    </label>
+                {/* 영역과 위치를 한 곳에서 고릅니다. 고른 것이 위의 흐름 그림과 아래 회로도에 함께 걸리고, 스크롤해도 위에 붙어 있습니다. */}
+                <div className="sticky top-0 z-10 -mx-6 space-y-1.5 border-b bg-background/95 px-6 py-2 backdrop-blur" role="group" aria-label="볼 곳 고르기">
+                    <div className="flex items-center gap-1.5">
+                        <span className="w-8 shrink-0 text-[11px] text-muted-foreground">영역</span>
+                        <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+                            {[{ id: null as string | null, label: "전체" }, ...areas].map((a) => (
+                                <button
+                                    key={a.id ?? "all"} type="button" aria-pressed={filter.area === a.id}
+                                    onClick={() => onFilter({ ...filter, area: a.id, scope: a.id && filter.scope && flows.some((f) => f.area === a.id && f.scope === filter.scope) ? filter.scope : null })}
+                                    className={cn("cn-button cn-button-size-xs inline-flex cursor-pointer items-center whitespace-nowrap", filter.area === a.id ? "cn-button-variant-secondary" : "cn-button-variant-ghost")}
+                                >{a.label}</button>
+                            ))}
+                        </div>
+                        <label className="inline-flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                            <Switch aria-label="공통 규칙도 보기" checked={filter.common} onCheckedChange={(v) => onFilter({ ...filter, common: v })} />
+                            공통 규칙도 보기
+                        </label>
+                    </div>
+                    <div className="flex items-start gap-1.5">
+                        <span className="w-8 shrink-0 pt-1 text-[11px] text-muted-foreground">위치</span>
+                        <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+                            <button type="button" aria-pressed={!filter.scope} onClick={() => onFilter({ ...filter, scope: null })} className={cn("cn-button cn-button-size-xs inline-flex cursor-pointer items-center whitespace-nowrap", !filter.scope ? "cn-button-variant-secondary" : "cn-button-variant-ghost")}>전체</button>
+                            {scopes.map(([sc, files]) => (
+                                <button key={sc} type="button" aria-pressed={filter.scope === sc} onClick={() => onFilter({ ...filter, scope: sc })} className={cn("cn-button cn-button-size-xs inline-flex cursor-pointer items-center whitespace-nowrap", filter.scope === sc ? "cn-button-variant-secondary" : "cn-button-variant-ghost")}>
+                                    {scopeName(sc)} <span className="num ml-1 opacity-70">{n(files)}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
                     {(["folder", "layer", "domain", "skill", "gap"] as const).map((t) => <span key={t} className="inline-flex items-center gap-1.5"><span className="inline-block size-2.5 rounded-sm" style={{ background: TYPE_COLOR[t] }} />{t === "gap" ? "OPEN (지시문 없음)" : TYPE_NAME[t]}</span>)}
@@ -154,16 +179,7 @@ export function FlowView({ map, filter, onFilter, onSelect }: Props)
                     <div className="space-y-3 border-t pt-5">
                         <div>
                             <h2 className="text-sm font-semibold">회로도 · {circuit.flow.areaLabel} · {circuit.flow.scope}</h2>
-                            <p className="mt-0.5 max-w-[80ch] text-xs text-muted-foreground">고른 칸 하나를 회로도로 펼칩니다. 입력 핀이 건드린 파일, 실선이 자동으로 로드되는 지시문, 점선 박스가 가리켜야 열리는 스킬입니다. 위치를 바꾸면 그 위치의 회로가 그려집니다.</p>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5" role="group" aria-label="위치 고르기">
-                            {flows.filter((f) => f.area === circuit.flow.area).sort((a, b) => b.files - a.files).map((f) => (
-                                <button
-                                    key={f.scope} type="button" aria-pressed={f.scope === circuit.flow.scope}
-                                    onClick={() => onFilter({ ...filter, area: f.area, scope: f.scope })}
-                                    className={cn("cn-button cn-button-size-xs inline-flex cursor-pointer items-center whitespace-nowrap", f.scope === circuit.flow.scope ? "cn-button-variant-secondary" : "cn-button-variant-ghost")}
-                                >{scopeName(f.scope)} <span className="num ml-1 opacity-70">{n(f.files)}</span></button>
-                            ))}
+                            <p className="mt-0.5 max-w-[80ch] text-xs text-muted-foreground">고른 칸 하나를 회로도로 펼칩니다. 입력 핀이 건드린 파일, 실선이 자동으로 로드되는 지시문, 점선 박스가 가리켜야 열리는 스킬입니다. 위의 영역 · 위치를 바꾸면 그 칸의 회로가 그려집니다. 하나로 정하지 않으면 그 안에서 가장 무거운(또는 파일이 많은) 칸을 펼칩니다.</p>
                         </div>
                         <CircuitDiagram circuit={circuit} alwaysChars={map.meta.alwaysChars} onSelect={onSelect} />
                     </div>
