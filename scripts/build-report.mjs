@@ -21,6 +21,7 @@ const map = json("map.json");
 if (!map) throw new Error(`맵이 없습니다. 먼저 scan.mjs 를 돌립니다: ${join(data, "map.json")}`);
 const traces = [];
 let skipped = 0;
+const ran = new Set((json("tests.json")?.scenarios ?? []).flatMap((x) => x.runs.map((r) => r.session)));
 const dir = join(data, "traces");
 if (existsSync(dir))
 {
@@ -30,7 +31,8 @@ if (existsSync(dir))
         if (!t) continue;
         // 마지막 줄이 「응답 끝」이 아닌 기록은 아직 진행 중인 세션입니다. 보고서를 만드는 이 세션이 대개 그렇고, 측정하는 동안의
         // 도구 호출이 결과에 섞이지 않도록 뺍니다. 넣으려면 `--include-open` 을 줍니다.
-        if (t.rows.at(-1)?.kind !== "stop" && !process.argv.includes("--include-open")) { skipped++; continue; }
+        // 시나리오가 돌린 세션은 턴 상한에 걸려 「응답 끝」 없이 끝나기도 합니다. 프로세스는 이미 끝났으므로 넣습니다.
+        if (t.rows.at(-1)?.kind !== "stop" && !ran.has(f.replace(/\.jsonl$/, "")) && !process.argv.includes("--include-open")) { skipped++; continue; }
         traces.push(t);
     }
     traces.sort((a, b) => a.startedAt.localeCompare(b.startedAt));

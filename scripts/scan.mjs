@@ -656,7 +656,7 @@ for (const n of nodes.filter((x) => x.source === "rule-paths" && x.matchedFiles 
     suggestions.push({
         id: `broad:${n.id}`, kind: "placement", severity: "low", confidence: "measured", targets: [n.id],
         title: `${n.title} 규칙은 조건이 넓어 거의 항상 로드됩니다`,
-        evidence: `저장소 파일의 ${Math.round(n.matchedFiles / files.length * 100)}%(${n.matchedFiles.toLocaleString()}개)가 이 규칙의 경로에 맞습니다. 파일을 하나만 열어도 대개 로드되므로 조건이 거의 걸러 내지 못합니다.`,
+        evidence: `저장소 파일의 ${Math.round(n.matchedFiles / files.length * 100)}%(${n.matchedFiles.toLocaleString()}개)가 이 규칙의 경로에 맞습니다. 파일을 하나만 열어도 대개 로드되므로 조건이 범위를 거의 좁히지 못합니다.`,
         action: "정말 모든 작업에 걸리는 글이면 짧게 줄여 루트에 두고, 아니면 경로를 그 규약이 실제로 걸리는 폴더나 파일 종류로 좁힙니다.",
     });
 }

@@ -61,7 +61,7 @@ export interface Trace
     rows: TraceRow[]; findings: Suggestion[];
     totals: { instructions: number; instructionChars: number; skills: string[]; tools: number; subagents: number; toolChars: number; bySource?: Record<string, { count: number; chars: number }> };
 }
-export interface ScenarioRun { session: string; variant: number; prompt: string; pass: boolean; hit: string[]; missed: string[]; firstLoadAt: number | null; duration: number }
+export interface ScenarioRun { session: string; variant: number; prompt: string; pass: boolean; hit: string[]; missed: string[]; readDirect?: string[]; firstLoadAt: number | null; duration: number }
 export interface Scenario
 {
     id: string; hypothesis: string; control?: boolean; variants: string[];

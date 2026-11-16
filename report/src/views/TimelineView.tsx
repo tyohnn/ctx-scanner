@@ -124,7 +124,7 @@ export function TimelineView({ trace, traces, onPickTrace, selected, onSelect }:
                 )}
                 <Segmented label="보일 이벤트" value={filter} onChange={setFilter} items={FILTERS.map((f) => ({ value: f.key, label: f.label }))} />
                 {D > 30000 && <Segmented label="보는 구간" value={zoom} onChange={setZoom} items={ZOOMS} />}
-                <Input aria-label="이름이나 경로로 거르기" value={query} onValueChange={(v) => setQuery(v)} placeholder="이름이나 경로로 거르기" className="no-print w-52" />
+                <Input aria-label="이름이나 경로로 필터" value={query} onValueChange={(v) => setQuery(v)} placeholder="이름이나 경로로 필터" className="no-print w-52" />
                 {trace.prompt?.preview && <span className="ml-auto max-w-[36%] truncate text-xs text-muted-foreground">요청 「{trace.prompt.preview}」</span>}
             </div>
 

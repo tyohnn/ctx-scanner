@@ -23,6 +23,8 @@ export function TestsView({ tests, onOpenTrace }: Props)
 function ScenarioCard({ s, onOpenTrace }: { s: Scenario; onOpenTrace: (session: string) => void })
 {
     const pass = s.runs.filter((r) => r.pass).length;
+    const direct = (r: Scenario["runs"][number]) => !r.pass && !!r.readDirect?.length && r.readDirect.length === r.missed.length;
+    const directCount = s.runs.filter(direct).length;
     const expects = [
         ...(s.expect.skills ?? []).map((x) => ({ label: `스킬 ${x}`, want: true })), ...(s.expect.loads ?? []).map((x) => ({ label: x, want: true })),
         ...(s.expect.notSkills ?? []).map((x) => ({ label: `스킬 ${x}`, want: false })), ...(s.expect.notLoads ?? []).map((x) => ({ label: x, want: false })),
@@ -42,8 +44,9 @@ function ScenarioCard({ s, onOpenTrace }: { s: Scenario; onOpenTrace: (session: 
                 <div className="shrink-0 text-right">
                     <div className="num text-2xl font-semibold leading-none">{pass}<span className="text-base text-muted-foreground"> / {s.runs.length}</span></div>
                     <div className="mt-1.5 flex justify-end gap-1">
-                        {s.runs.map((r) => <span key={r.session} className="inline-block size-2.5 rounded-sm" style={{ background: r.pass ? "var(--lv4)" : "var(--destructive)" }} />)}
+                        {s.runs.map((r) => <span key={r.session} className="inline-block size-2.5 rounded-sm" style={{ background: r.pass ? "var(--lv4)" : direct(r) ? "var(--lv2)" : "var(--destructive)" }} />)}
                     </div>
+                    {directCount > 0 && <div className="mt-1 text-[11px] text-muted-foreground">직접 읽음 {n(directCount)}</div>}
                 </div>
             </div>
             <div className="border-t">
@@ -51,15 +54,15 @@ function ScenarioCard({ s, onOpenTrace }: { s: Scenario; onOpenTrace: (session: 
                     <button key={r.session} type="button" onClick={() => onOpenTrace(r.session)} className="grid w-full grid-cols-[20px_minmax(0,1.6fr)_minmax(0,1fr)_84px_70px] items-center gap-3 border-b px-4 py-1.5 text-left text-xs last:border-b-0 hover:bg-muted/60">
                         {r.pass ? <Check className="size-3.5" style={{ color: "var(--lv4)" }} /> : <X className="size-3.5" style={{ color: "var(--destructive)" }} />}
                         <span className="truncate">「{r.prompt}」</span>
-                        <span className={cn("num truncate text-[11px]", r.missed.length ? "" : "text-muted-foreground")} style={r.missed.length ? { color: "var(--destructive)" } : undefined}>
-                            {r.missed.length ? `빠짐 ${r.missed.join(", ")}` : `로드 ${r.hit.join(", ") || "없음"}`}
+                        <span className={cn("num truncate text-[11px]", r.missed.length && !direct(r) ? "" : "text-muted-foreground")} style={r.missed.length && !direct(r) ? { color: "var(--destructive)" } : undefined}>
+                            {direct(r) ? `로드되지 않음 · 세션이 직접 읽음 ${r.readDirect!.join(", ")}` : r.missed.length ? `빠짐 ${r.missed.join(", ")}` : `로드 ${r.hit.join(", ") || "없음"}`}
                         </span>
                         <span className="num text-right text-[11px] text-muted-foreground">{r.firstLoadAt != null ? `+${secs(r.firstLoadAt)}` : ""}</span>
                         <span className="num text-right text-[11px] text-muted-foreground">{secs(r.duration)}</span>
                     </button>
                 ))}
             </div>
-            <div className="px-4 py-2 text-[11px] text-muted-foreground">줄을 누르면 그 세션의 기록이 열립니다. 넷째 칸은 기대한 것이 처음 로드된 시점이고 마지막 칸은 세션이 걸린 시간입니다. 표본 {n(s.runs.length)}번의 비율이라 경향으로만 읽습니다.</div>
+            <div className="px-4 py-2 text-[11px] text-muted-foreground">줄을 누르면 그 세션의 기록이 열립니다. 넷째 칸은 기대한 것이 처음 로드된 시점이고 마지막 칸은 세션이 걸린 시간입니다. 「직접 읽음」은 자동으로 로드되지는 않았지만 세션이 그 파일을 스스로 열어 읽은 경우입니다. 표본 {n(s.runs.length)}번의 비율이라 경향으로만 읽습니다.</div>
         </article>
     );
 }
