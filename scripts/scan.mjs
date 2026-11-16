@@ -402,7 +402,18 @@ for (const c of [arg("config", ""), ".claude/ctxscope.json"].filter(Boolean))
 // 원본을 그대로 옮겨 둔 패키지처럼 일부러 규약을 걸지 않는 곳은 `.claude/ctxscope.json` 의 `ignore` 에 적습니다.
 const ignoreRes = [".*/**", ...(config.ignore ?? [])].map((g) => new RegExp(globToRe(g)));
 const ignored = (f) => ignoreRes.some((r) => r.test(f));
-const areas = (config.areas ?? DEFAULT_AREAS).map((a, i) => ({ ...a, order: a.order ?? i, res: a.paths.map((g) => new RegExp(globToRe(g))) }));
+// `areas` 는 기본 영역에 덧씌웁니다. id 가 같으면 그 영역의 label · paths 만 바꾸고, 새 id 는 「패키지 코드」 앞에 끼웁니다.
+// 영역 하나를 좁히려고 열넷을 다 옮겨 적지 않게 하려는 것입니다. 기본값을 버리고 처음부터 적으려면 `replaceAreas: true` 를 줍니다.
+const mergeAreas = (base, extra) =>
+{
+    const out = base.map((a) => ({ ...a, ...(extra.find((e) => e.id === a.id) ?? {}) }));
+    const fresh = extra.filter((e) => !base.some((a) => a.id === e.id));
+    const at = out.findIndex((a) => a.id === "package");
+    out.splice(at < 0 ? out.length : at, 0, ...fresh);
+    return out;
+};
+const areaList = !config.areas ? DEFAULT_AREAS : config.replaceAreas ? config.areas : mergeAreas(DEFAULT_AREAS, config.areas);
+const areas = areaList.map((a, i) => ({ ...a, order: a.order ?? i, res: a.paths.map((g) => new RegExp(globToRe(g))) }));
 const areaOf = (f) => areas.find((a) => a.res.some((r) => r.test(f)));
 const scopeOf = (f) =>
 {
@@ -414,6 +425,10 @@ const skillOfPath = (p) => nodes.find((n) => n.kind === "skill" && p.startsWith(
 // 계층 규칙이 어느 영역의 규약인지는 그 규칙에 맞는 파일이 어느 영역에 몰려 있는지로 봅니다. 어느 영역에도 4분의 1 넘게
 // 몰려 있지 않으면 영역을 가리지 않는 공통 규칙으로 봅니다(파일 크기 제한 같은 것).
 const codeFiles = src.filter((x) => /\.(ts|tsx|js|jsx|mjs|cjs|sql|py|go|rs|css)$/.test(x));
+// 영역마다 코드 파일 수입니다. 규칙이 한 영역의 절반 넘게 덮으면, 그 영역이 규칙 파일 가운데 차지하는 몫이 작아도 그 영역의 규약으로 봅니다.
+// 화면 규칙(`apps/**/*.tsx`)처럼 큰 영역과 작은 영역에 함께 걸리는 규칙이 작은 영역에서 빠지지 않게 하려는 것입니다.
+const areaTotal = {};
+for (const f of codeFiles.filter((x) => !ignored(x))) { const a = areaOf(f)?.id; if (a) areaTotal[a] = (areaTotal[a] ?? 0) + 1; }
 for (const n of nodes.filter((x) => x.source === "rule-paths"))
 {
     // 영역은 테스트를 먼저 봐서(`actions/x.test.ts` 는 테스트) 테스트가 많은 폴더의 규칙이 테스트 영역으로 쏠립니다.
@@ -423,11 +438,16 @@ for (const n of nodes.filter((x) => x.source === "rule-paths"))
     const hit = nonTest.length >= all.length / 2 ? nonTest : all;
     const count = {};
     for (const f of hit) { const a = areaOf(f)?.id; if (a) count[a] = (count[a] ?? 0) + 1; }
-    const share = Object.entries(count).filter(([, c]) => hit.length && c / hit.length >= 0.25).sort((a, b) => b[1] - a[1]).map(([a]) => a);
+    const ranked = Object.entries(count).sort((a, b) => b[1] - a[1]);
+    const share = ranked.filter(([, c]) => hit.length && c / hit.length >= 0.25).map(([a]) => a);
+    const covered = ranked.filter(([a, c]) => a !== "test" && !share.includes(a) && c / (areaTotal[a] ?? Infinity) >= 0.5).map(([a]) => a);
     // 코드 파일의 절반 넘게 걸리는 규칙(파일 크기 제한 같은 것)은 영역을 가리지 않습니다. 「패키지 코드」 · 「앱의 그 밖의 코드」는
     // 다른 영역이 없을 때만 씁니다. 그런 규칙은 그 위치 안의 모든 영역에서 계층 칸에 들어갑니다(도메인 패키지 규약 같은 것).
+    // 덮은 영역(covered)은 몫으로 정한 영역이 좁을 때만 더합니다. 위치 전체에 걸리는 규칙(「패키지 코드」)이 덮은 영역 하나 때문에
+    // 좁은 규칙으로 바뀌면 그 위치의 다른 영역에서 계층 칸이 비기 때문입니다.
     const narrow = share.filter((a) => !["package", "app"].includes(a));
-    n.areas = all.length / codeFiles.length >= 0.5 ? [] : narrow.length ? narrow : share;
+    const extra = covered.filter((a) => !["package", "app"].includes(a));
+    n.areas = all.length / codeFiles.length >= 0.5 ? [] : narrow.length ? [...narrow, ...extra] : share;
     if (n.role === "layer" && !n.areas.length) n.role = "common";
 }
 const cells = new Map();
@@ -560,7 +580,10 @@ for (const n of nodes.filter((x) => x.kind === "nested"))
 }
 
 const lineSet = (text) => new Set(text.split("\n").map((l) => l.trim()).filter((l) => l.length >= 12 && !l.startsWith("#")));
-const secs = nodes.filter((x) => ["root", "nested", "rule"].includes(x.kind)).flatMap((node) => sections(read(node.path)).filter((s) => s.chars >= 400).map((s) => ({ node, title: s.title, chars: s.chars, set: lineSet(s.text) })));
+// 도구가 써 넣고 다시 써 넣는 블록(`<!-- BEGIN:nextjs-agent-rules -->` … `<!-- END:… -->`)은 겹침으로 세지 않습니다.
+// 앱마다 같은 글이 있는 것이 정상이고, 지워도 `next dev` 가 다시 만들어 고칠 길이 없습니다.
+const withoutGenerated = (t) => t.replace(/<!--\s*BEGIN:([\w-]+)\s*-->[\s\S]*?<!--\s*END:\1\s*-->/g, "");
+const secs = nodes.filter((x) => ["root", "nested", "rule"].includes(x.kind)).flatMap((node) => sections(withoutGenerated(read(node.path))).filter((s) => s.chars >= 400).map((s) => ({ node, title: s.title, chars: s.chars, set: lineSet(s.text) })));
 const groupOf = secs.map((_, i) => i);
 const find = (i) => groupOf[i] === i ? i : (groupOf[i] = find(groupOf[i]));
 for (let i = 0; i < secs.length; i++)

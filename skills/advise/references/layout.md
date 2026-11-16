@@ -138,7 +138,8 @@ paths:
 플로우의 줄은 「영역 × 위치」입니다. 영역은 경로 패턴으로 정하고 위에서부터 처음 맞는 것을 씁니다. 기본값은 테스트 · DB 를 먼저 보고
 (`actions/x.test.ts` 는 서버 액션이 아니라 테스트입니다) 그다음 서버 액션 · 유스케이스 · 크론 · 웹훅 · MCP · API 라우트 · 화면 · UI 컴포넌트 ·
 포트 · 어댑터 · 패키지 코드 · 앱의 그 밖의 코드 순서입니다. 보고서는 테스트 · DB 를 맨 끝에 보여 줍니다. 저장소의 폴더 이름이 다르면
-`.claude/ctxscope.json` 에 적습니다.
+`.claude/ctxscope.json` 의 `areas` 에 적습니다. 기본 영역에 덧씌우므로 바꿀 영역만 적습니다. id 가 같으면 그 영역의 `label` · `paths` 가
+바뀌고, 새 id 는 「패키지 코드」 앞에 들어갑니다. 기본값을 버리고 처음부터 적으려면 `"replaceAreas": true` 를 줍니다.
 
 규칙이 어느 영역의 규약인지는 그 규칙에 맞는 코드 파일이 어느 영역에 4분의 1 넘게 몰려 있는지로 봅니다. 테스트 파일은 규칙에 맞는
 파일의 절반을 넘을 때만 셉니다. 코드 파일의 절반 넘게 걸리는 규칙(파일 크기 제한)은 영역을 가리지 않는 공통 규칙이고, 「패키지 코드」에만
@@ -150,7 +151,7 @@ paths:
 ```json
 {
     "areas": [
-        { "id": "action", "label": "서버 액션", "paths": ["apps/*/src/actions/**"] },
+        { "id": "api", "paths": ["apps/*/src/app/api/**/route.ts"] },
         { "id": "domain", "label": "도메인 패키지", "paths": ["packages/{sales,legal,access}/src/**"] }
     ],
     "ignore": ["packages/vella-ui/**"]
