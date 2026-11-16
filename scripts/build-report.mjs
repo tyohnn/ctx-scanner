@@ -20,13 +20,18 @@ const json = (name) => existsSync(join(data, name)) ? JSON.parse(readFileSync(jo
 const map = json("map.json");
 if (!map) throw new Error(`맵이 없습니다. 먼저 scan.mjs 를 돌립니다: ${join(data, "map.json")}`);
 const traces = [];
+let skipped = 0;
 const dir = join(data, "traces");
 if (existsSync(dir))
 {
     for (const f of readdirSync(dir).filter((x) => x.endsWith(".jsonl")))
     {
         const t = readTrace(join(dir, f), map);
-        if (t) traces.push(t);
+        if (!t) continue;
+        // 마지막 줄이 「응답 끝」이 아닌 기록은 아직 진행 중인 세션입니다. 보고서를 만드는 이 세션이 대개 그렇고, 측정하는 동안의
+        // 도구 호출이 결과에 섞이지 않도록 뺍니다. 넣으려면 `--include-open` 을 줍니다.
+        if (t.rows.at(-1)?.kind !== "stop" && !process.argv.includes("--include-open")) { skipped++; continue; }
+        traces.push(t);
     }
     traces.sort((a, b) => a.startedAt.localeCompare(b.startedAt));
 }
@@ -58,4 +63,4 @@ const body = JSON.stringify(report).replace(/</g, "\\u003c");
 const out = resolve(arg("out", join(data, "report.html")));
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, template.replace(SLOT, (_, a, b) => a + body + b));
-console.log(`보고서: 맵 노드 ${map.nodes.length} · 기록 ${traces.length}건 · 시나리오 ${tests?.scenarios?.length ?? 0}개 → ${out}`);
+console.log(`보고서: 맵 노드 ${map.nodes.length} · 기록 ${traces.length}건${skipped ? `(진행 중인 기록 ${skipped}건 뺌)` : ""} · 시나리오 ${tests?.scenarios?.length ?? 0}개 → ${out}`);
