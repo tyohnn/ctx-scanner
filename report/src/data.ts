@@ -17,6 +17,9 @@ export interface MapNode
 }
 export interface MapEdge { from: string; to: string; kind: "hard" | "soft"; reason: string }
 export interface Stack { parts: string[]; files: number; chars: number; examples: string[]; topDirs: [string, number][] }
+// 빈칸: 계층 규칙이나 도메인 용어 규칙이 하나도 로드되지 않는 칸입니다.
+export interface Gap { id: string; area: string; scope: string; files: number }
+
 // 영역 × 위치 하나에서 파일을 건드릴 때 로드되는 것입니다. 자동으로 로드되는 것은 세 축(폴더 · 계층 · 도메인)으로 나눕니다.
 export interface Flow
 {
@@ -36,7 +39,7 @@ export interface Suggestion
 export interface ContextMap
 {
     meta: { repo: string; commit: string; generatedAt: string; limits: { onDemand200k: number; onDemand1m: number; skillListing: number }; files: number; sourceFiles: number; alwaysChars: number; notes?: string[]; areas?: { id: string; label: string; paths: string[] }[]; sources?: Partial<Record<Source, { count: number; chars: number }>> };
-    nodes: MapNode[]; edges: MapEdge[]; stacks: Stack[]; flows?: Flow[]; suggestions: Suggestion[];
+    nodes: MapNode[]; edges: MapEdge[]; stacks: Stack[]; flows?: Flow[]; gaps?: { layer: Gap[]; domain: Gap[] }; suggestions: Suggestion[];
 }
 export type RowKind = "session" | "prompt" | "instruction" | "skill" | "tool" | "subagent" | "compact" | "stop";
 export interface TraceRow

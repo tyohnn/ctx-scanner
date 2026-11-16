@@ -931,11 +931,16 @@ let commit = "";
 try { commit = git("rev-parse", "--short", "HEAD").trim(); }
 catch { /* 깃이 없으면 비워 둡니다 */ }
 
+// 빈칸(OPEN): 칸의 파일을 열어도 계층 규칙이나 도메인 용어 규칙이 하나도 로드되지 않는 곳입니다. 화면의 흐름 그림 ·
+// 회로도 · 영역 지도가 같은 칸을 그리고, advise 와 다른 도구가 화면 없이 읽을 수 있게 지도에도 싣습니다.
+const gapOf = (kind) => flows.filter((f) => !f[kind].length).sort((a, b) => b.files - a.files).map(({ id, area, scope, files: n }) => ({ id, area, scope, files: n }));
+const gaps = { layer: gapOf("layer"), domain: gapOf("domain") };
+
 const map = {
     schema: 1,
     meta: { areas: [...areas].sort((a, b) => a.order - b.order).map(({ id, label, paths }) => ({ id, label, paths })), repo: basename(root), commit, generatedAt: new Date().toISOString(), limits: LIMITS, notes: ["항상 로드되는 내용은 이 저장소의 루트 CLAUDE.md · 규칙 · `.claude/skills` · `.claude/agents` 만 셉니다. 켜 둔 플러그인과 사용자 설정의 스킬 설명은 세션마다 달라서 빠져 있습니다."], files: files.length, sourceFiles: src.length, alwaysChars, sources },
-    nodes, edges, stacks, flows, suggestions,
+    nodes, edges, stacks, flows, gaps, suggestions,
 };
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, JSON.stringify(map));
-console.log(`맵: 노드 ${nodes.length} · 간선 ${edges.length} · 플로우 ${flows.length} · 제안 ${suggestions.length} · 항상 로드되는 내용 ${alwaysChars.toLocaleString()}자 → ${out}`);
+console.log(`맵: 노드 ${nodes.length} · 간선 ${edges.length} · 플로우 ${flows.length} · 빈칸 계층 ${gaps.layer.length} · 용어 ${gaps.domain.length} · 제안 ${suggestions.length} · 항상 로드되는 내용 ${alwaysChars.toLocaleString()}자 → ${out}`);
