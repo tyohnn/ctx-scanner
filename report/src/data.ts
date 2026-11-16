@@ -13,7 +13,7 @@ export interface MapNode
     when: { how: string; text: string; globs?: string[] }[];
     matchedFiles?: number; namedBy?: string[]; extraFiles?: number;
     role?: "layer" | "domain" | "common" | "general"; areas?: string[]; listing?: "on" | "name-only" | "user-invocable-only" | "off"; fullListingChars?: number;
-    refs?: { path: string; resolved: string | null; state: "ok" | "suffix" | "dead" }[];
+    refs?: { path: string; resolved: string | null; state: "ok" | "suffix" | "dead" | "outside" }[];
 }
 export interface MapEdge { from: string; to: string; kind: "hard" | "soft"; reason: string }
 export interface Stack { parts: string[]; files: number; chars: number; examples: string[]; topDirs: [string, number][] }

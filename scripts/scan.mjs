@@ -3,7 +3,7 @@
 // 쓰는 법: node scan.mjs [--root <저장소>] [--out <map.json>]
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, posix, resolve } from "node:path";
 import { argOf, dataDir } from "./lib-paths.mjs";
 
 const arg = argOf(process.argv.slice(2));
@@ -278,6 +278,9 @@ for (const n of nodes.filter((x) => x.kind === "nested"))
         if (hits.length < 2) return s;
         const dir = commonDir(hits);
         if (dir.length <= n.dir.length - 1 || /^(src|app|lib)$/.test(dir.slice(n.dir.length))) return s;
+        // `_components/` · `lib/` 처럼 폴더 전체가 함께 쓰는 구현의 자리를 가리키면 규약이 그 폴더만의 것이라는 뜻이 아닙니다.
+        // 목록 화면의 짜임을 적은 섹션이 그 짜임을 그리는 공용 컴포넌트를 참조하는 경우가 그렇습니다.
+        if (/^(_[^/]+|components|lib|utils|hooks|shared)$/.test(dir.slice(dir.lastIndexOf("/") + 1))) return s;
         const count = files.filter((x) => x.startsWith(dir + "/")).length;
         return { ...s, narrow: { dir, files: count, share: inDir ? count / inDir : 0, paths: hits.length } };
     });
@@ -314,14 +317,22 @@ for (const src of docSources)
     for (const m of t.matchAll(/`([^`\s]+)`/g))
     {
         let p = m[1].replace(/[.,:;]+$/, "");
+        const line = t.slice(t.lastIndexOf("\n", m.index) + 1, (t.indexOf("\n", m.index) + 1 || t.length + 1) - 1);
         if (!p.includes("/") || /[*<>{}$()|=@]/.test(p) || /^https?:/.test(p) || p.startsWith("/") || p.startsWith("~") || p.startsWith("node_modules/")) continue;
         if (!/\.(md|ts|tsx|mjs|js|json|sql|yml|yaml|css|sh)$|\/$/.test(p)) continue;
         p = p.replace(/\/$/, "");
         if (seen.has(p)) continue;
         seen.add(p);
-        const hit = [p, base ? base + "/" + p : p].find((c) => fileSet.has(c) || dirs.has(c));
+        // `../CLAUDE.md` 처럼 상대 경로로 적은 참조는 그 문서의 폴더를 기준으로 접어서 찾습니다.
+        const relative = base ? posix.normalize(base + "/" + p) : posix.normalize(p);
+        const hit = [p, relative].find((c) => fileSet.has(c) || dirs.has(c));
         const bySuffix = !hit && (files.some((x) => x.endsWith("/" + p)) || [...dirs].some((x) => x.endsWith("/" + p)));
-        const state = hit ? "ok" : bySuffix ? "suffix" : "dead";
+        // 깨진 참조로 세지 않는 것이 둘입니다. 같은 줄에 커밋 해시가 있으면 지난 커밋의 경로를 적은 것이고, 첫 폴더가
+        // 저장소 어디에도 없으면(`자료/` · `결과/`) 쓰는 사람이 만드는 작업 폴더나 예시입니다. 지도에는 `outside` 로 남깁니다.
+        const head = p.split("/")[0];
+        const pastCommit = /`[0-9a-f]{7,40}`/.test(line);
+        const outside = !/^\.\.?$/.test(head) && !dirs.has(head) && !(base && dirs.has(base + "/" + head)) && ![...dirs].some((x) => x.endsWith("/" + head));
+        const state = hit ? "ok" : bySuffix ? "suffix" : pastCommit || outside ? "outside" : "dead";
         src.refs.push({ path: p, resolved: hit ?? null, state });
         refs.push({ from: src.id, path: p, resolved: hit ?? null, state });
         if (hit && byId.has(hit) && hit !== src.id) edges.push({ from: src.id, to: hit, kind: "soft", reason: "mention" });
@@ -616,12 +627,26 @@ for (const g of [...dupGroups.values()].filter((x) => x.length >= 2))
 }
 const byTitle = new Map();
 for (const s of secs.filter((x) => x.node.kind === "nested" && x.title !== "(머리말)" && !inDup.has(`${x.node.id}#${x.title}`))) byTitle.set(s.title, [...(byTitle.get(s.title) ?? []), s]);
-for (const [title, g] of [...byTitle].filter(([, x]) => new Set(x.map((s) => s.node.id)).size >= 2))
+// 제목만 같고 내용이 다른 섹션(「지금 선 것」 · 「명령어」처럼 폴더마다 쓰는 틀)은 같은 규약의 사본이 아닙니다.
+// 낱말 집합이 얼마나 겹치는지 재서 겹침이 작은 짝은 빼고, 서로 이어지는 섹션이 둘 이상 남을 때만 알립니다.
+const words = (text) => new Set((text.match(/[\p{L}\p{N}_]{2,}/gu) ?? []).map((w) => w.toLowerCase()));
+const similarity = (a, b) =>
 {
+    let both = 0;
+    for (const w of a) if (b.has(w)) both++;
+    return both / (a.size + b.size - both || 1);
+};
+const SAME_TOPIC_MIN = 0.2;
+for (const s of secs) s.words = words([...s.set].join("\n"));
+for (const [title, all] of [...byTitle])
+{
+    const g = all.filter((s) => all.some((o) => o !== s && o.node !== s.node && similarity(s.words, o.words) >= SAME_TOPIC_MIN));
+    if (new Set(g.map((s) => s.node.id)).size < 2) continue;
+    const top = Math.max(...g.flatMap((s) => g.filter((o) => o !== s).map((o) => similarity(s.words, o.words))));
     suggestions.push({
         id: `same-topic:${title}`, kind: "placement", severity: "low", confidence: "heuristic", targets: [...new Set(g.map((s) => s.node.id))],
         title: `「${title}」 섹션을 폴더 ${g.length}곳이 따로 적고 있습니다`,
-        evidence: `${g.map((s) => `${s.node.title} ${s.chars.toLocaleString()}자`).join(", ")}. 제목은 같고 내용은 다릅니다. 같은 규약의 다른 사본인지, 폴더마다 정말 다른 규약인지는 읽어 봐야 압니다.`,
+        evidence: `${g.map((s) => `${s.node.title} ${s.chars.toLocaleString()}자`).join(", ")}. 제목이 같고 낱말이 최대 ${Math.round(top * 100)}% 겹칩니다. 같은 규약의 다른 사본인지, 폴더마다 정말 다른 규약인지는 읽어 봐야 압니다.`,
         action: "같은 규약이면 공통 부분을 경로 규칙 하나로 모으고 폴더에는 차이만 남깁니다. 다른 규약이면 그대로 둡니다.",
     });
 }
