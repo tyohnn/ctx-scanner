@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 
-import { LEVELS, kindLabel, REASON_LABEL, n, secs, type ContextMap, type MapNode, type Trace } from "@/data";
+import { ROLE_LABEL, LEVELS, kindLabel, REASON_LABEL, n, secs, type ContextMap, type MapNode, type Trace } from "@/data";
 
 import { Chars, CONFIDENCE, LevelBadge, NodeLink, Section, SEVERITY } from "./bits";
 import { Button, Meter } from "./ui";
@@ -85,8 +85,16 @@ export function Inspector({ map, trace, node, onSelect }: Props)
                                     : <> 폴더 전체에 해당하는 내용이면 여기가 맞는 위치입니다.</>}
                             </p>
                         )}
+                        {node.source === "rule-paths" && node.role && (
+                            <p className="mb-1.5 leading-snug">
+                                <b className="font-medium">{ROLE_LABEL[node.role]}</b>{" "}
+                                {node.role === "domain" ? "입니다. 그 도메인의 코드가 있는 폴더에 걸리고, 무엇이라 부르는지를 정합니다."
+                                    : node.role === "layer" ? "입니다. 폴더 이름이나 확장자 같은 파일 종류에 걸리고, 어떻게 만드는지를 정합니다."
+                                        : "입니다. 맞는 파일이 어느 한 영역에 몰려 있지 않아 영역을 가리지 않고 로드됩니다."}
+                            </p>
+                        )}
                         {node.source === "rule-paths" && <p className="leading-snug">경로 단위입니다. 폴더가 아니라 파일의 경로에 맞춰 로드되므로 파일 종류나 여러 폴더에 걸친 규약을 한 곳에 둘 수 있습니다. 한 파일에 여러 규칙이 겹치면 모두 로드됩니다.</p>}
-                        {node.source === "rule-always" && <p className="leading-snug">경로 조건이 없어서 로드되는 시점가 루트 CLAUDE.md 와 같습니다. 파일만 나뉘어 있습니다.</p>}
+                        {node.source === "rule-always" && <p className="leading-snug">경로 조건이 없어서 로드되는 시점이 루트 CLAUDE.md 와 같습니다. 파일만 나뉘어 있습니다.</p>}
                     </Section>
                 )}
 

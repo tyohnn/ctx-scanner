@@ -12,10 +12,18 @@ export interface MapNode
     globs?: { glob: string; re: string; files: number }[];
     when: { how: string; text: string; globs?: string[] }[];
     matchedFiles?: number; namedBy?: string[]; extraFiles?: number;
+    role?: "layer" | "domain" | "common" | "general"; areas?: string[]; listing?: "on" | "name-only" | "user-invocable-only" | "off"; fullListingChars?: number;
     refs?: { path: string; resolved: string | null; state: "ok" | "suffix" | "dead" }[];
 }
 export interface MapEdge { from: string; to: string; kind: "hard" | "soft"; reason: string }
 export interface Stack { parts: string[]; files: number; chars: number; examples: string[]; topDirs: [string, number][] }
+// 영역 × 위치 하나에서 파일을 건드릴 때 로드되는 것입니다. 자동으로 로드되는 것은 세 축(폴더 · 계층 · 도메인)으로 나눕니다.
+export interface Flow
+{
+    id: string; area: string; areaLabel: string; scope: string; files: number; example: string; exampleFiles: number; variants: number;
+    folder: string[]; layer: string[]; common: string[]; domain: string[]; chars: { folder: number; layer: number; common: number; domain: number };
+    skills: { id: string; via: string }[]; next: { id: string; via: string; files: number }[]; docs: string[]; docCount: number;
+}
 export interface Suggestion
 {
     id: string; kind: string; severity: "high" | "medium" | "low"; confidence?: "measured" | "heuristic" | "needs-test";
@@ -23,8 +31,8 @@ export interface Suggestion
 }
 export interface ContextMap
 {
-    meta: { repo: string; commit: string; generatedAt: string; limits: { onDemand200k: number; onDemand1m: number; skillListing: number }; files: number; sourceFiles: number; alwaysChars: number; sources?: Partial<Record<Source, { count: number; chars: number }>> };
-    nodes: MapNode[]; edges: MapEdge[]; stacks: Stack[]; suggestions: Suggestion[];
+    meta: { repo: string; commit: string; generatedAt: string; limits: { onDemand200k: number; onDemand1m: number; skillListing: number }; files: number; sourceFiles: number; alwaysChars: number; areas?: { id: string; label: string; paths: string[] }[]; sources?: Partial<Record<Source, { count: number; chars: number }>> };
+    nodes: MapNode[]; edges: MapEdge[]; stacks: Stack[]; flows?: Flow[]; suggestions: Suggestion[];
 }
 export type RowKind = "session" | "prompt" | "instruction" | "skill" | "tool" | "subagent" | "compact" | "stop";
 export interface TraceRow
@@ -62,6 +70,7 @@ export const LEVELS: Record<Level, { label: string; short: string; who: string; 
 };
 export const KIND_LABEL: Record<Kind, string> = { root: "루트 지시문", nested: "폴더 지시문", rule: "경로 규칙", skill: "스킬", agent: "서브에이전트", hook: "훅" };
 export const SOURCE_LABEL: Record<Source, string> = { root: "루트 지시문", folder: "폴더 지시문", "rule-always": "항상 로드되는 규칙", "rule-paths": "경로 규칙" };
+export const ROLE_LABEL: Record<string, string> = { layer: "계층 규약", domain: "도메인 용어", common: "공통 규칙", general: "항상 로드되는 규칙" };
 export const kindLabel = (node: Pick<MapNode, "kind" | "source">) => node.source ? SOURCE_LABEL[node.source] : KIND_LABEL[node.kind];
 export const REASON_LABEL: Record<string, string> = {
     session_start: "세션 시작", nested_traversal: "폴더 진입", path_glob_match: "경로 일치", include: "@가져오기", compact: "압축 뒤 복원",

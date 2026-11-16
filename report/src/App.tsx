@@ -8,11 +8,12 @@ import { IconToggle, Select, Tabs, TabsContent, TabsList, TabsTrigger } from "@/
 import { loadReport, n, secs } from "@/data";
 import { AdviceView } from "@/views/AdviceView";
 import { FilesView } from "@/views/FilesView";
+import { FlowView } from "@/views/FlowView";
 import { MapView } from "@/views/MapView";
 import { TestsView } from "@/views/TestsView";
 import { TimelineView } from "@/views/TimelineView";
 
-type Tab = "map" | "timeline" | "files" | "tests" | "advice";
+type Tab = "map" | "flow" | "timeline" | "files" | "tests" | "advice";
 
 // 주소의 # 뒤에 보던 위치를 적어 둡니다. 보고서를 다시 열거나 남에게 건넬 때 같은 화면이 뜹니다.
 function readHash()
@@ -52,6 +53,7 @@ export function App()
     const alwaysRules = map.nodes.filter((x) => x.source === "rule-always").length;
     const tabs: { key: Tab; label: string; badge?: string | number; show: boolean }[] = [
         { key: "map", label: "맵", show: true },
+        { key: "flow", label: "플로우", badge: map.flows?.length, show: !!map.flows?.length },
         { key: "timeline", label: "타임라인", badge: traces.length || undefined, show: traces.length > 0 },
         { key: "files", label: "파일", show: true },
         { key: "tests", label: "시나리오", badge: tests?.scenarios.length, show: !!tests },
@@ -96,6 +98,7 @@ export function App()
                 <div className="flex min-h-0 flex-1">
                     <main className="min-w-0 flex-1">
                         <TabsContent value="map" className="h-full"><MapView map={map} trace={trace} selected={selected} onSelect={setSelected} /></TabsContent>
+                        <TabsContent value="flow" className="h-full"><FlowView map={map} selected={selected} onSelect={setSelected} onOpenAdvice={() => setTab("advice")} /></TabsContent>
                         {trace && <TabsContent value="timeline" className="h-full"><TimelineView key={trace.session} trace={trace} selected={selected} onSelect={setSelected} /></TabsContent>}
                         <TabsContent value="files" className="h-full"><FilesView map={map} selected={selected} onSelect={setSelected} /></TabsContent>
                         {tests && <TabsContent value="tests" className="h-full"><TestsView tests={tests} onOpenTrace={(s) => { setTraceIndex(traces.findIndex((t) => t.session === s)); setTab("timeline"); }} /></TabsContent>}

@@ -73,7 +73,7 @@ export function readTrace(file, map)
                 id: "bash-before-rules", severity: "medium",
                 title: `처음 ${Math.round(firstOnDemand.at / 1000)}초 동안 폴더 규약 없이 일했습니다`,
                 evidence: `그동안 Bash(${[...new Set(before.map((r) => r.target))].join(" · ")}) 로 ${before.length}번 살폈는데 규약은 하나도 로드되지 않았습니다. 규약은 Read 도구로 \`${firstOnDemand.trigger ?? "파일"}\` 을 열었을 때 처음 로드됐습니다.`,
-                action: "루트에 「파일은 Read 로 연다」를 한 줄 두거나, 훅으로 Bash 의 cat · grep 을 Read · Grep 으로 돌립니다. 그 뒤 같은 시나리오로 규약이 로드되는 시점가 당겨지는지 봅니다.",
+                action: "루트에 「파일은 Read 로 연다」를 한 줄 두거나, 훅으로 Bash 의 cat · grep 을 Read · Grep 으로 돌립니다. 그 뒤 같은 시나리오로 규약이 로드되는 시점이 당겨지는지 봅니다.",
                 rows: before.map((r) => r.i),
             });
         }

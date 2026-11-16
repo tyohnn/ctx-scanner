@@ -10,6 +10,7 @@ const GROUPS: { key: string; label: string; kinds: string[] }[] = [
     { key: "all", label: "전체", kinds: [] },
     { key: "demote", label: "항상 로드되는 내용 줄이기", kinds: ["demote"] },
     { key: "placement", label: "위치 변경", kinds: ["placement"] },
+    { key: "mece", label: "겹침과 빈칸", kinds: ["mece"] },
     { key: "truncation", label: "잘리는 내용", kinds: ["truncation"] },
     { key: "broken", label: "깨진 참조", kinds: ["dead-ref", "dead-glob"] },
     { key: "intent", label: "규약이 닿지 않는 곳", kinds: ["coverage"] },
@@ -81,7 +82,7 @@ export function AdviceView({ map, trace, onSelect }: Props)
                                 <span className="inline-block size-2 rounded-full" style={{ background: SEVERITY[s.severity].color }} />
                                 <span>{SEVERITY[s.severity].label}</span>
                                 {s.confidence && <span className="cn-badge cn-badge-variant-secondary inline-flex shrink-0 items-center whitespace-nowrap" title={CONFIDENCE[s.confidence].hint}>{CONFIDENCE[s.confidence].label}</span>}
-                                {s.saves ? <span className="num ml-auto text-foreground">{s.kind === "placement" && !s.id.startsWith("always-rule:") ? "조건이 맞을 때 로드되는 내용" : "항상 로드되는 내용"} −{n(s.saves)}자</span> : null}
+                                {s.saves ? <span className="num ml-auto text-foreground">{(s.kind === "placement" && !s.id.startsWith("always-rule:")) || s.id.startsWith("long-rule:") ? "조건이 맞을 때 로드되는 내용" : "항상 로드되는 내용"} −{n(s.saves)}자</span> : null}
                             </div>
                             <h3 className="mt-1.5 text-sm font-semibold leading-snug"><Marked text={s.title} /></h3>
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><Marked text={s.evidence} /></p>
