@@ -24,7 +24,7 @@ hooks/hooks.json          수집 훅. 사건마다 collect.mjs 를 부른다
 scripts/                  scan · collect · run-scenario · build-report 와 그 둘이 함께 쓰는 lib
 skills/                   위의 다섯
 templates/report.html     지어 둔 보고서 틀. 자료 칸 하나를 채우면 문서가 된다
-report/                   틀의 소스(React · Tailwind · AI Elements 의 캔버스)
+report/                   틀의 소스(React · Tailwind · UI SDK `@ui-sdk/react` 의 Waterfall · Tabs · Select 들. 그래프만 React Flow)
 ```
 
 ## 수집기가 적는 것

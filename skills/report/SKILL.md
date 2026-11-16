@@ -29,4 +29,4 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/build-report.mjs" --root . --out <보고서�
 
 ## 틀을 고칠 때
 
-틀의 소스는 `report/` 에 있습니다(React · Tailwind · AI Elements 의 캔버스). 고친 뒤 `cd report && npm install && npm run build` 로 `templates/report.html` 을 다시 만들어 함께 커밋합니다.
+틀의 소스는 `report/` 에 있습니다(React · Tailwind · UI SDK `@ui-sdk/react` 의 Waterfall · Tabs · Select 들. 그래프만 React Flow). 고친 뒤 `cd report && npm install && npm run build` 로 `templates/report.html` 을 다시 만들어 함께 커밋합니다.
