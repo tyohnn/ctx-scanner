@@ -29,4 +29,4 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/build-report.mjs" --root . --out <보고서�
 
 ## 틀을 고칠 때
 
-틀의 소스는 `report/` 에 있습니다(React · Tailwind · UI SDK `@ui-sdk/react` 의 Waterfall · Tabs · Select 들. 그래프만 React Flow). 고친 뒤 `cd report && npm install && npm run build` 로 `templates/report.html` 을 다시 만들어 함께 커밋합니다.
+틀의 소스는 `report/` 에 있습니다(React · Tailwind · UI SDK `@ui-sdk/react` 의 Waterfall · Tabs · Select 들. 그래프만 React Flow. 모양은 `report/src/graphite/` 에 복사한 tyohnn graphite 의 토큰과 규칙). 고친 뒤 `cd report && npm install && npm run build` 로 `templates/report.html` 을 다시 만들어 함께 커밋합니다. 보고서는 어두운 화면으로 열리고, 주소 끝에 `theme=light` 를 붙이면 밝은 화면으로 열립니다. 색이나 크기를 바꾸려면 틀에 값을 적지 않고 `report/src/graphite/README.md` 를 따릅니다.
