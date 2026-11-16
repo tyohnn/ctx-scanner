@@ -6,7 +6,7 @@ import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { SEVERITY } from "@/components/bits";
-import { Input, Segmented } from "@/components/ui";
+import { Input, Segmented, Select } from "@/components/ui";
 import { REASON_LABEL, ROW_COLOR, ROW_LABEL, SOURCE_LABEL, n, secs, shortPath, type RowKind, type Trace, type TraceRow } from "@/data";
 import { cn } from "@/lib/utils";
 
@@ -53,9 +53,9 @@ function toItems(rows: TraceRow[]): WaterfallData
     return items;
 }
 
-interface Props { trace: Trace; selected: string | null; onSelect: (id: string | null) => void }
+interface Props { trace: Trace; traces: Trace[]; onPickTrace: (i: number) => void; selected: string | null; onSelect: (id: string | null) => void }
 
-export function TimelineView({ trace, selected, onSelect }: Props)
+export function TimelineView({ trace, traces, onPickTrace, selected, onSelect }: Props)
 {
     const [filter, setFilter] = useState("all");
     const [zoom, setZoom] = useState("all");
@@ -112,6 +112,16 @@ export function TimelineView({ trace, selected, onSelect }: Props)
     return (
         <div className="flex h-full flex-col">
             <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
+                {/* 볼 세션은 타임라인에서만 쓰이므로 머리가 아니라 이 줄에서 고릅니다. */}
+                {traces.length > 1 && (
+                    <Select
+                        label="볼 세션" value={String(traces.indexOf(trace))} onChange={(v) => onPickTrace(Number(v))} className="no-print max-w-72"
+                        items={traces.map((t, i) => ({
+                            value: String(i), label: `${t.session.slice(0, 6)} · ${secs(t.duration)} · ${t.prompt?.preview?.slice(0, 22) ?? "세션"}`,
+                            node: <><span className="num text-muted-foreground">{t.session.slice(0, 6)}</span><span className="num w-14 text-right text-muted-foreground">{secs(t.duration)}</span><span className="truncate">{t.prompt?.preview?.slice(0, 34) ?? "세션"}</span></>,
+                        }))}
+                    />
+                )}
                 <Segmented label="보일 이벤트" value={filter} onChange={setFilter} items={FILTERS.map((f) => ({ value: f.key, label: f.label }))} />
                 {D > 30000 && <Segmented label="보는 구간" value={zoom} onChange={setZoom} items={ZOOMS} />}
                 <Input aria-label="이름이나 경로로 거르기" value={query} onValueChange={(v) => setQuery(v)} placeholder="이름이나 경로로 거르기" className="no-print w-52" />

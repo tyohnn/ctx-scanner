@@ -1,10 +1,26 @@
 import { Check, X } from "lucide-react";
 
-import { n, secs, type Scenario } from "@/data";
+import { n, secs, type Report, type Scenario } from "@/data";
 import { cn } from "@/lib/utils";
 
-// 시나리오 하나의 판정 카드입니다. 타임라인에서 시나리오 제목을 누르면 오른쪽에 펼칩니다.
-export function ScenarioCard({ s, onOpenTrace }: { s: Scenario; onOpenTrace: (session: string) => void })
+interface Props { tests: NonNullable<Report["tests"]>; onOpenTrace: (session: string) => void }
+
+export function TestsView({ tests, onOpenTrace }: Props)
+{
+    const sessions = new Set(tests.scenarios.flatMap((s) => s.runs.map((r) => r.session)));
+    return (
+        <div className="h-full overflow-y-auto">
+            <div className="mx-auto max-w-[1040px] px-6 py-5">
+                <div className="mb-4 text-xs text-muted-foreground">
+                    시나리오 {tests.scenarios.length}개를 새 세션 {sessions.size}번으로 돌렸습니다. 판정은 세션이 남긴 기록만 봅니다. 세션에게는 가설을 알려 주지 않습니다.
+                </div>
+                <div className="space-y-3 pb-8">{tests.scenarios.map((s) => <ScenarioCard key={s.id} s={s} onOpenTrace={onOpenTrace} />)}</div>
+            </div>
+        </div>
+    );
+}
+
+function ScenarioCard({ s, onOpenTrace }: { s: Scenario; onOpenTrace: (session: string) => void })
 {
     const pass = s.runs.filter((r) => r.pass).length;
     const expects = [

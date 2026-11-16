@@ -11,22 +11,21 @@ import { AreaMapView } from "@/views/AreaMapView";
 import { FilesView } from "@/views/FilesView";
 import { FlowView } from "@/views/FlowView";
 import { MapView } from "@/views/MapView";
-import { SessionsView } from "@/views/SessionsView";
 import { SummaryView } from "@/views/SummaryView";
+import { TestsView } from "@/views/TestsView";
+import { TimelineView } from "@/views/TimelineView";
 import { TodoView } from "@/views/TodoView";
 
-// 탭은 읽는 사람의 물음 순서입니다: 얼마나(요약) → 무엇부터(할 일) → 무엇이 무엇을 부르나(플로우) → 어디가 무겁나(영역 지도) → 이 파일은(파일) → 자세히(맵 · 타임라인).
-// 시나리오는 세션 기록이므로 타임라인 안에서 세션 목록과 함께 봅니다.
-type Tab = "summary" | "todo" | "flow" | "areas" | "files" | "map" | "timeline";
-const TABS: Tab[] = ["summary", "todo", "flow", "areas", "files", "map", "timeline"];
+// 탭은 읽는 사람의 물음 순서입니다: 얼마나(요약) → 무엇부터(할 일) → 무엇이 무엇을 부르나(플로우) → 어디가 무겁나(영역 지도) → 이 파일은(파일) → 자세히(맵 · 타임라인 · 시나리오).
+type Tab = "summary" | "todo" | "flow" | "areas" | "files" | "map" | "timeline" | "tests";
+const TABS: Tab[] = ["summary", "todo", "flow", "areas", "files", "map", "timeline", "tests"];
 
 // 주소의 # 뒤에 보던 위치를 적어 둡니다. 보고서를 다시 열거나 남에게 건넬 때 같은 화면이 뜹니다.
 function readHash()
 {
     const p = new URLSearchParams(location.hash.slice(1));
-    // 지난 버전의 탭 이름(advice · tests)으로 건넨 주소도 같은 화면을 엽니다.
-    const OLD: Record<string, Tab> = { advice: "todo", tests: "timeline" };
-    const raw = OLD[p.get("tab") ?? ""] ?? p.get("tab");
+    // 지난 버전의 탭 이름(advice)으로 건넨 주소도 같은 화면을 엽니다.
+    const raw = p.get("tab") === "advice" ? "todo" : p.get("tab");
     const tab = TABS.includes(raw as Tab) ? raw as Tab : "summary";
     return { tab, node: p.get("node"), trace: Number(p.get("trace") ?? -1), dark: p.get("theme") !== "light", area: p.get("area"), scope: p.get("scope") };
 }
@@ -77,7 +76,8 @@ export function App()
         { key: "areas", label: "영역 지도", show: !!map.flows?.length },
         { key: "files", label: "파일", show: true },
         { key: "map", label: "맵", show: true },
-        { key: "timeline", label: "타임라인", badge: traces.length || undefined, show: traces.length > 0 || !!tests?.scenarios.length },
+        { key: "timeline", label: "타임라인", badge: traces.length || undefined, show: traces.length > 0 },
+        { key: "tests", label: "시나리오", badge: tests?.scenarios.length, show: !!tests },
     ];
     document.title = `ctxscope · ${report.title ?? map.meta.repo}`;
 
@@ -107,11 +107,12 @@ export function App()
                         <TabsContent value="flow" className="h-full"><FlowView map={map} filter={filter} onFilter={setFilter} onSelect={setSelected} /></TabsContent>
                         <TabsContent value="areas" className="h-full"><AreaMapView map={map} onOpenCell={openCell} /></TabsContent>
                         <TabsContent value="map" className="h-full"><MapView map={map} trace={trace} selected={selected} onSelect={setSelected} /></TabsContent>
-                        <TabsContent value="timeline" className="h-full"><SessionsView traces={traces} tests={tests} traceIndex={traces.indexOf(trace!)} onTrace={setTraceIndex} selected={selected} onSelect={setSelected} /></TabsContent>
+                        {trace && <TabsContent value="timeline" className="h-full"><TimelineView key={trace.session} trace={trace} traces={traces} onPickTrace={setTraceIndex} selected={selected} onSelect={setSelected} /></TabsContent>}
                         <TabsContent value="files" className="h-full"><FilesView map={map} selected={selected} onSelect={setSelected} /></TabsContent>
+                        {tests && <TabsContent value="tests" className="h-full"><TestsView tests={tests} onOpenTrace={(s) => { setTraceIndex(traces.findIndex((t) => t.session === s)); setTab("timeline"); }} /></TabsContent>}
                     </main>
                     {/* 상세 패널은 무언가를 골랐을 때만 엽니다. 비어 있을 때 화면을 차지하지 않게 합니다. */}
-                    {node && <Inspector map={map} trace={trace} node={node} onSelect={setSelected} />}
+                    {node && tab !== "tests" && <Inspector map={map} trace={trace} node={node} onSelect={setSelected} />}
                 </div>
             </Tabs>
         </ReactFlowProvider>
