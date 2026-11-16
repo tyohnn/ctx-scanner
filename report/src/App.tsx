@@ -1,11 +1,13 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-sdk/react/select";
+import { Tabs, TabsList, TabsPanel, TabsTab } from "@ui-sdk/react/tabs";
+import { Toggle, ToggleIcon } from "@ui-sdk/react/toggle";
 import { ReactFlowProvider } from "@xyflow/react";
-import { Moon, Sun } from "lucide-react";
+import { ChevronsUpDown, Moon, Sun } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Inspector } from "@/components/Inspector";
 import { Chars } from "@/components/bits";
 import { loadReport, n, secs } from "@/data";
-import { cn } from "@/lib/utils";
 import { AdviceView } from "@/views/AdviceView";
 import { FilesView } from "@/views/FilesView";
 import { MapView } from "@/views/MapView";
@@ -60,22 +62,22 @@ export function App()
 
     return (
         <ReactFlowProvider>
-            <div className="flex h-full flex-col">
+            <Tabs value={tab} onValueChange={(v) => { if (v) setTab(v as Tab); }} className="flex h-full flex-col">
                 <header className="flex items-center gap-4 border-b bg-card px-4 py-2">
                     <div className="flex items-baseline gap-2">
                         <span className="num text-sm font-semibold tracking-tight">ctxscope</span>
                         <span className="text-xs text-muted-foreground">{report.title ?? map.meta.repo}{map.meta.commit && <span className="num"> @ {map.meta.commit}</span>}</span>
                     </div>
-                    <nav className="flex items-center gap-0.5">
+                    <TabsList aria-label="보고서 화면" className="flex items-center gap-0.5">
                         {tabs.filter((t) => t.show).map((t) => (
-                            <button
-                                key={t.key} type="button" onClick={() => setTab(t.key)}
-                                className={cn("rounded px-2.5 py-1 text-xs transition-colors", tab === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
+                            <TabsTab
+                                key={t.key} value={t.key}
+                                className="cursor-pointer rounded px-2.5 py-1 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[selected]:bg-primary data-[selected]:text-primary-foreground"
                             >
                                 {t.label}{t.badge != null && <span className="num ml-1 opacity-70">{t.badge}</span>}
-                            </button>
+                            </TabsTab>
                         ))}
-                    </nav>
+                    </TabsList>
                     <div className="ml-auto flex items-center gap-4 text-[11px] text-muted-foreground">
                         <span>늘 실리는 글 <Chars value={map.meta.alwaysChars} className="text-foreground" /></span>
                         <span>폴더 지시문 <span className="num text-foreground">{count("nested")}</span></span>
@@ -83,27 +85,40 @@ export function App()
                         <span>스킬 <span className="num text-foreground">{count("skill")}</span></span>
                         <span>파일 <span className="num text-foreground">{n(map.meta.files)}</span></span>
                         {traces.length > 1 && (
-                            <select
-                                value={traces.indexOf(trace!)} onChange={(e) => setTraceIndex(Number(e.target.value))}
-                                className="no-print max-w-56 rounded border bg-card px-1.5 py-1 text-[11px] text-foreground outline-none"
+                            <Select
+                                aria-label="볼 세션" value={String(traces.indexOf(trace!))} onValueChange={(v) => { if (typeof v === "string") setTraceIndex(Number(v)); }}
+                                items={traces.map((t, i) => ({ value: String(i), label: `${t.session.slice(0, 6)} · ${secs(t.duration)} · ${t.prompt?.preview?.slice(0, 22) ?? "세션"}` }))}
                             >
-                                {traces.map((t, i) => <option key={t.session} value={i}>{t.session.slice(0, 6)} · {secs(t.duration)} · {t.prompt?.preview?.slice(0, 22) ?? "세션"}</option>)}
-                            </select>
+                                <SelectTrigger className="no-print flex max-w-64 cursor-pointer items-center gap-1 rounded border bg-card px-1.5 py-1 text-[11px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                    <SelectValue className="truncate" /><ChevronsUpDown className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                </SelectTrigger>
+                                <SelectContent align="end" sideOffset={4} className="z-50 max-h-80 min-w-[var(--anchor-width)] overflow-y-auto rounded-md border bg-card p-1 text-xs text-foreground shadow-lg outline-none">
+                                    {traces.map((t, i) => (
+                                        <SelectItem key={t.session} value={String(i)} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-muted data-[selected]:font-semibold">
+                                            <span className="num text-muted-foreground">{t.session.slice(0, 6)}</span>
+                                            <span className="num w-14 text-right text-muted-foreground">{secs(t.duration)}</span>
+                                            <span className="truncate">{t.prompt?.preview?.slice(0, 34) ?? "세션"}</span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         )}
-                        <button type="button" onClick={() => setDark(!dark)} className="no-print rounded p-1 hover:bg-muted" aria-label="밝기 바꾸기">{dark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}</button>
+                        <Toggle aria-label="어두운 화면" pressed={dark} onPressedChange={(v) => setDark(v)} className="no-print cursor-pointer rounded p-1 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring data-[pressed]:text-foreground">
+                            <ToggleIcon>{dark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}</ToggleIcon>
+                        </Toggle>
                     </div>
                 </header>
                 <div className="flex min-h-0 flex-1">
                     <main className="min-w-0 flex-1">
-                        {tab === "map" && <MapView map={map} trace={trace} selected={selected} onSelect={setSelected} />}
-                        {tab === "timeline" && trace && <TimelineView trace={trace} selected={selected} onSelect={setSelected} />}
-                        {tab === "files" && <FilesView map={map} selected={selected} onSelect={setSelected} />}
-                        {tab === "tests" && tests && <TestsView tests={tests} onOpenTrace={(s) => { setTraceIndex(traces.findIndex((t) => t.session === s)); setTab("timeline"); }} />}
-                        {tab === "advice" && <AdviceView map={map} trace={trace} onSelect={setSelected} />}
+                        <TabsPanel value="map" className="h-full outline-none"><MapView map={map} trace={trace} selected={selected} onSelect={setSelected} /></TabsPanel>
+                        {trace && <TabsPanel value="timeline" className="h-full outline-none"><TimelineView key={trace.session} trace={trace} selected={selected} onSelect={setSelected} /></TabsPanel>}
+                        <TabsPanel value="files" className="h-full outline-none"><FilesView map={map} selected={selected} onSelect={setSelected} /></TabsPanel>
+                        {tests && <TabsPanel value="tests" className="h-full outline-none"><TestsView tests={tests} onOpenTrace={(s) => { setTraceIndex(traces.findIndex((t) => t.session === s)); setTab("timeline"); }} /></TabsPanel>}
+                        <TabsPanel value="advice" className="h-full outline-none"><AdviceView map={map} trace={trace} onSelect={setSelected} /></TabsPanel>
                     </main>
                     {tab !== "tests" && <Inspector map={map} trace={trace} node={node} onSelect={setSelected} />}
                 </div>
-            </div>
+            </Tabs>
         </ReactFlowProvider>
     );
 }

@@ -1,3 +1,5 @@
+import { Meter as MeterRoot, MeterIndicator, MeterTrack } from "@ui-sdk/react/meter";
+import { SegmentedControl, SegmentedControlIndicator, SegmentedControlItem } from "@ui-sdk/react/segmented-control";
 import type { ReactNode } from "react";
 
 import { KIND_LABEL, LEVELS, n, type Level, type MapNode } from "@/data";
@@ -20,14 +22,16 @@ export function LevelBadge({ level }: { level: Level })
 }
 
 // 상한에 얼마나 찼는지 보이는 막대입니다. 85% 부터 색이 바뀝니다.
-export function Meter({ value, max, className }: { value: number; max: number; className?: string })
+export function Meter({ value, max, label = "상한까지 찬 정도", className }: { value: number; max: number; label?: string; className?: string })
 {
     const pct = Math.min(value / max, 1);
     const color = value >= max ? "var(--bad)" : pct >= 0.85 ? "var(--warn)" : "var(--ring)";
     return (
-        <div className={cn("h-1 w-full overflow-hidden rounded-full bg-muted", className)}>
-            <div className="h-full rounded-full" style={{ width: `${Math.max(pct * 100, 2)}%`, background: color }} />
-        </div>
+        <MeterRoot aria-label={label} value={value} max={max} format={(v) => `${n(v)}자`} className={cn("block w-full", className)}>
+            <MeterTrack className="block h-1 w-full overflow-hidden rounded-full bg-muted">
+                <MeterIndicator className="block h-full rounded-full" style={{ width: "max(var(--meter-value), 2%)", background: color }} />
+            </MeterTrack>
+        </MeterRoot>
     );
 }
 
@@ -60,15 +64,21 @@ export function NodeLink({ node, onSelect, sub }: { node: MapNode; onSelect: (id
     );
 }
 
-export function Pill({ active, onClick, children }: { active?: boolean; onClick?: () => void; children: ReactNode })
+// 몇 가지 가운데 하나를 고르는 줄입니다. 고른 칸 뒤로 표시가 미끄러져 옵니다.
+export function Segmented<T extends string>({ label, value, onChange, items }: { label: string; value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode }[] })
 {
     return (
-        <button
-            type="button" onClick={onClick}
-            className={cn("rounded px-2 py-1 text-xs transition-colors", active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
-        >
-            {children}
-        </button>
+        <SegmentedControl aria-label={label} value={value} onValueChange={(v) => { if (v) onChange(v as T); }} className="relative inline-flex items-center rounded-md bg-muted p-0.5">
+            <SegmentedControlIndicator
+                className="absolute rounded bg-card shadow-sm transition-[left,width] duration-150 ease-out"
+                style={{ left: "var(--segmented-control-indicator-left)", top: "var(--segmented-control-indicator-top)", width: "var(--segmented-control-indicator-width)", height: "var(--segmented-control-indicator-height)" }}
+            />
+            {items.map((it) => (
+                <SegmentedControlItem key={it.value} value={it.value} className="relative z-[1] cursor-pointer rounded px-2 py-1 text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[checked]:text-foreground">
+                    {it.label}
+                </SegmentedControlItem>
+            ))}
+        </SegmentedControl>
     );
 }
 

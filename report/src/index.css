@@ -1,3 +1,6 @@
+/* UI SDK 의 동작용 CSS 가 Tailwind 층 아래에 깔리도록 층 차례를 먼저 적습니다. */
+@layer ui-sdk;
+
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));

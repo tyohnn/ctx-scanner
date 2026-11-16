@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 
-import { Chars, CONFIDENCE, Pill, SEVERITY } from "@/components/bits";
+import { Chars, CONFIDENCE, Segmented, SEVERITY } from "@/components/bits";
 import { n, type ContextMap, type Suggestion, type Trace } from "@/data";
 import { cn } from "@/lib/utils";
 
@@ -65,12 +65,11 @@ export function AdviceView({ map, trace, onSelect }: Props)
                     </div>
                 </div>
 
-                <div className="mb-2 mt-5 flex items-center gap-1">
-                    {GROUPS.map((g) =>
-                    {
-                        const count = all.filter((s) => !g.kinds.length || g.kinds.includes(s.kind)).length;
-                        return count ? <Pill key={g.key} active={group === g.key} onClick={() => setGroup(g.key)}>{g.label} <span className="num opacity-70">{count}</span></Pill> : null;
-                    })}
+                <div className="mb-2 mt-5">
+                    <Segmented
+                        label="제안 갈래" value={group} onChange={setGroup}
+                        items={GROUPS.map((g) => ({ g, count: all.filter((s) => !g.kinds.length || g.kinds.includes(s.kind)).length })).filter((x) => x.count).map(({ g, count }) => ({ value: g.key, label: <>{g.label} <span className="num opacity-70">{count}</span></> }))}
+                    />
                 </div>
 
                 <div className="space-y-2 pb-8">

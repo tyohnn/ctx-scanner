@@ -1,7 +1,12 @@
-import { Search } from "lucide-react";
+import { Input } from "@ui-sdk/react/input";
+import {
+    visibleWaterfallRows, Waterfall, WaterfallAxis, WaterfallBar, WaterfallCell, WaterfallColumnHeader, WaterfallHeaderRow, WaterfallIndicator,
+    WaterfallMark, WaterfallRow, WaterfallRowHeader, WaterfallTick, type WaterfallData, type WaterfallDataItem,
+} from "@ui-sdk/react/waterfall";
+import { ChevronRight, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { Pill, SEVERITY } from "@/components/bits";
+import { Segmented, SEVERITY } from "@/components/bits";
 import { REASON_LABEL, ROW_COLOR, ROW_LABEL, n, secs, shortPath, type RowKind, type Trace, type TraceRow } from "@/data";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +18,12 @@ const FILTERS: { key: string; label: string; kinds: RowKind[] | null }[] = [
     { key: "tool", label: "도구", kinds: ["tool"] },
     { key: "subagent", label: "서브에이전트", kinds: ["subagent"] },
 ];
+const ZOOMS = [{ value: "all", label: "전체" }, { value: "30", label: "첫 30초" }, { value: "10", label: "첫 10초" }];
 const GRID = "grid grid-cols-[minmax(220px,1.4fr)_76px_84px_minmax(120px,1fr)_72px_64px_minmax(260px,2.2fr)] items-center";
+const CELL = "outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring";
+// 눈금은 둥근 때에 서므로 소수 없이 적습니다.
+const axisTime = (ms: number) => ms === 0 ? "0" : ms % 1000 ? secs(ms) : ms < 60000 ? `${ms / 1000}초` : `${Math.floor(ms / 60000)}분${ms % 60000 ? ` ${ms % 60000 / 1000}초` : ""}`;
+const idOf = (r: TraceRow) => `r${r.i}`;
 
 function rowName(r: TraceRow)
 {
@@ -22,14 +32,26 @@ function rowName(r: TraceRow)
     return <span>{r.name}</span>;
 }
 
-// 폭포 칸의 눈금을 정합니다. 다섯 칸 안팎이 되게 간격을 고릅니다.
-function ticksFor(duration: number)
+// 기록의 줄을 폭포가 읽는 모양으로 바꿉니다. 서브에이전트 안에서 일어난 일은 그 서브에이전트 줄의 아래로 넣습니다.
+function toItems(rows: TraceRow[]): WaterfallData
 {
-    const steps = [1000, 2000, 5000, 10000, 15000, 30000, 60000, 120000, 300000, 600000];
-    const step = steps.find((s) => duration / s <= 6) ?? 600000;
-    const out: number[] = [];
-    for (let t = 0; t <= duration; t += step) out.push(t);
-    return out;
+    const items: WaterfallDataItem[] = [];
+    const open = new Map<string, WaterfallDataItem & { children: WaterfallDataItem[] }>();
+    for (const r of rows)
+    {
+        const item: WaterfallDataItem = { value: idOf(r), label: r.name, start: r.at, duration: r.dur };
+        const parent = r.agent?.type ? open.get(r.agent.type) : undefined;
+        if (r.kind === "subagent")
+        {
+            const branch = { ...item, children: [] as WaterfallDataItem[] };
+            open.set(r.name, branch);
+            items.push(branch);
+        }
+        else if (parent) parent.children.push(item);
+        else items.push(item);
+    }
+    for (const b of open.values()) if (!b.children.length) delete (b as WaterfallDataItem).children;
+    return items;
 }
 
 interface Props { trace: Trace; selected: string | null; onSelect: (id: string | null) => void }
@@ -37,13 +59,26 @@ interface Props { trace: Trace; selected: string | null; onSelect: (id: string |
 export function TimelineView({ trace, selected, onSelect }: Props)
 {
     const [filter, setFilter] = useState("all");
+    const [zoom, setZoom] = useState("all");
     const [query, setQuery] = useState("");
     const [finding, setFinding] = useState<string | null>(null);
+    const [picked, setPicked] = useState<string | null>(null);
     const D = Math.max(trace.duration, 1);
-    const ticks = useMemo(() => ticksFor(D), [D]);
+    const end = zoom === "all" ? D : Math.min(Number(zoom) * 1000, D);
     const marked = new Set(trace.findings.find((f) => f.id === finding)?.rows ?? []);
     const kinds = FILTERS.find((f) => f.key === filter)!.kinds;
-    const rows = trace.rows.filter((r) => (!kinds || kinds.includes(r.kind)) && (!query || `${r.name} ${r.target ?? ""} ${r.trigger ?? ""}`.toLowerCase().includes(query.toLowerCase())));
+    const rows = useMemo(
+        () => trace.rows.filter((r) => (!kinds || kinds.includes(r.kind)) && (!query || `${r.name} ${r.target ?? ""} ${r.trigger ?? ""}`.toLowerCase().includes(query.toLowerCase()))),
+        [trace, kinds, query],
+    );
+    const items = useMemo(() => toItems(rows), [rows]);
+    const byValue = useMemo(() => new Map(trace.rows.map((r) => [idOf(r), r])), [trace]);
+    const [expanded, setExpanded] = useState(() => trace.rows.filter((r) => r.kind === "subagent").map(idOf));
+    const shown = visibleWaterfallRows(items, expanded);
+    const prompt = trace.rows.find((r) => r.kind === "prompt");
+    // 지도나 검사기에서 고른 파일이 이 기록에 있으면 그 줄을 고른 것으로 보입니다.
+    const fromNode = selected ? rows.find((r) => r.nodeId === selected) : undefined;
+    const value = picked && (byValue.get(picked)?.nodeId ?? null) === selected ? picked : fromNode ? idOf(fromNode) : null;
 
     // 위쪽 띠는 그때까지 컨텍스트에 쌓인 글자 수를 계단으로 그립니다. 지시문과 도구 결과를 나눠 쌓습니다.
     const strip = useMemo(() =>
@@ -66,31 +101,32 @@ export function TimelineView({ trace, selected, onSelect }: Props)
             let prev = 0;
             for (const p of pts)
             {
-                const x = p.at / D * 1000;
+                const x = p.at / end * 1000;
                 d += ` L${x},${100 - prev} L${x},${100 - f(p) / max * 100}`;
                 prev = f(p) / max * 100;
             }
-            return d + ` L1000,100 Z`;
+            return d + ` L${D / end * 1000},100 Z`;
         };
         return { instr, tool, total: path((p) => p.instr + p.tool), instrPath: path((p) => p.instr) };
-    }, [trace, D]);
+    }, [trace, D, end]);
 
     return (
         <div className="flex h-full flex-col">
-            <div className="flex flex-wrap items-center gap-1 border-b px-3 py-2">
-                {FILTERS.map((f) => <Pill key={f.key} active={filter === f.key} onClick={() => setFilter(f.key)}>{f.label}</Pill>)}
-                <label className="no-print ml-2 flex items-center gap-1.5 rounded border bg-card px-2 py-1 text-xs">
-                    <Search className="size-3.5 text-muted-foreground" />
-                    <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="이름이나 경로로 거르기" className="w-44 bg-transparent outline-none placeholder:text-muted-foreground" />
+            <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
+                <Segmented label="보일 사건" value={filter} onChange={setFilter} items={FILTERS.map((f) => ({ value: f.key, label: f.label }))} />
+                {D > 30000 && <Segmented label="보는 구간" value={zoom} onChange={setZoom} items={ZOOMS} />}
+                <label className="no-print flex items-center gap-1.5 rounded border bg-card px-2 py-1 text-xs focus-within:ring-2 focus-within:ring-ring">
+                    <Search className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                    <Input aria-label="이름이나 경로로 거르기" value={query} onValueChange={(v) => setQuery(v)} placeholder="이름이나 경로로 거르기" className="w-44 bg-transparent outline-none placeholder:text-muted-foreground" />
                 </label>
-                {trace.prompt?.preview && <span className="ml-auto max-w-[44%] truncate text-xs text-muted-foreground">요청 「{trace.prompt.preview}」</span>}
+                {trace.prompt?.preview && <span className="ml-auto max-w-[36%] truncate text-xs text-muted-foreground">요청 「{trace.prompt.preview}」</span>}
             </div>
 
             {trace.findings.length > 0 && (
                 <div className="flex gap-2 border-b bg-secondary px-3 py-2">
                     {trace.findings.map((f) => (
                         <button
-                            key={f.id} type="button" onClick={() => setFinding(finding === f.id ? null : f.id)}
+                            key={f.id} type="button" aria-pressed={finding === f.id} onClick={() => setFinding(finding === f.id ? null : f.id)}
                             className={cn("min-w-0 flex-1 rounded border bg-card px-3 py-2 text-left", finding === f.id && "ring-2 ring-primary")}
                         >
                             <div className="flex items-center gap-1.5 font-medium">
@@ -102,60 +138,90 @@ export function TimelineView({ trace, selected, onSelect }: Props)
                 </div>
             )}
 
-            <div className={cn(GRID, "border-b bg-secondary px-3 text-[11px] text-muted-foreground")}>
+            <div className={cn(GRID, "border-b bg-secondary pl-3 pr-[22px] text-[11px] text-muted-foreground")}>
                 <div className="col-span-6 py-1.5">
                     쌓인 글 <span className="num text-foreground">{n(strip.instr + strip.tool)}자</span>
                     <span className="ml-2 inline-block size-2 rounded-sm align-middle" style={{ background: "var(--lv2)" }} /> 지시문 · 스킬 <span className="num">{n(strip.instr)}</span>
                     <span className="ml-2 inline-block size-2 rounded-sm align-middle" style={{ background: "var(--lv5)" }} /> 도구 결과 <span className="num">{n(strip.tool)}</span>
                     <span className="ml-2">(글자 수로 어림한 값)</span>
                 </div>
-                <svg viewBox="0 0 1000 100" preserveAspectRatio="none" className="h-12 w-full">
+                <svg viewBox="0 0 1000 100" preserveAspectRatio="none" className="ml-3 h-12 w-[calc(100%-12px)]" aria-hidden="true">
                     <path d={strip.total} fill="var(--lv5)" opacity="0.35" />
                     <path d={strip.instrPath} fill="var(--lv2)" opacity="0.55" />
                 </svg>
             </div>
 
-            <div className={cn(GRID, "border-b px-3 py-1.5 text-[11px] font-medium text-muted-foreground")}>
-                <div>이름</div><div>종류</div><div>까닭</div><div>일으킨 것</div><div className="text-right">크기</div><div className="text-right">때</div>
-                <div className="relative ml-3 h-4">
-                    {ticks.map((t) => <span key={t} className="num absolute top-0 -translate-x-1/2 whitespace-nowrap font-normal" style={{ left: `${t / D * 100}%`, display: t / D > 0.96 ? "none" : undefined }}>{t === 0 ? "0" : secs(t)}</span>)}
-                </div>
-            </div>
+            <Waterfall
+                aria-label="세션 기록" items={items} range={[0, end]}
+                expanded={expanded} onExpandedChange={setExpanded}
+                value={value} onValueChange={(v) => { setPicked(v); onSelect((v ? byValue.get(v)?.nodeId : null) ?? null); }}
+                format={axisTime}
+                getBarLabel={(_, { start, duration }) => `${start}에 시작, ${duration} 걸림`}
+                className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-scroll"
+            >
+                <WaterfallHeaderRow className={cn(GRID, "sticky top-0 z-10 border-b bg-background px-3 py-1.5 text-[11px] font-medium text-muted-foreground")}>
+                    <WaterfallColumnHeader>이름</WaterfallColumnHeader>
+                    <WaterfallColumnHeader>종류</WaterfallColumnHeader>
+                    <WaterfallColumnHeader>까닭</WaterfallColumnHeader>
+                    <WaterfallColumnHeader>일으킨 것</WaterfallColumnHeader>
+                    <WaterfallColumnHeader className="text-right">크기</WaterfallColumnHeader>
+                    <WaterfallColumnHeader className="text-right">때</WaterfallColumnHeader>
+                    <WaterfallColumnHeader aria-label="시간" className="relative ml-3 h-4">
+                        <WaterfallAxis maxTicks={6} className="relative block h-full">
+                            {({ ticks }) => ticks.map((t) => (
+                                <WaterfallTick key={t.time} time={t.time} className="num pointer-events-none absolute top-0 h-screen border-l border-border/70 pl-1 font-normal whitespace-nowrap" style={{ left: "var(--waterfall-tick)" }}>
+                                    {t.label}
+                                </WaterfallTick>
+                            ))}
+                        </WaterfallAxis>
+                        {prompt && (
+                            <WaterfallMark time={prompt.at} className="pointer-events-none absolute top-0 h-screen border-l border-dashed pl-1 font-normal whitespace-nowrap data-[outside]:hidden" style={{ left: "var(--waterfall-mark)", borderColor: "var(--lv1)", color: "var(--lv1)" }}>
+                                <span className="relative top-3.5 bg-background/80">요청</span>
+                            </WaterfallMark>
+                        )}
+                    </WaterfallColumnHeader>
+                </WaterfallHeaderRow>
 
-            <div className="min-h-0 flex-1 overflow-y-auto">
-                {rows.map((r) =>
+                {shown.map(({ item }) =>
                 {
+                    const r = byValue.get(item.value)!;
                     const color = ROW_COLOR[r.kind];
-                    const left = r.at / D * 100;
                     const loaded = r.kind === "instruction" || r.kind === "skill";
+                    const late = r.at / end > 0.8;
                     return (
-                        <div
-                            key={r.i} role={r.nodeId ? "button" : undefined} onClick={() => r.nodeId && onSelect(r.nodeId)}
-                            className={cn(GRID, "border-b border-border/60 px-3 text-xs hover:bg-muted/60", r.nodeId && "cursor-pointer", r.nodeId && r.nodeId === selected && "bg-muted", marked.has(r.i) && "bg-[color-mix(in_oklch,var(--warn)_14%,transparent)]")}
-                            style={{ height: 26 }}
+                        <WaterfallRow
+                            key={item.value} value={item.value}
+                            className={cn(GRID, CELL, "h-[26px] cursor-default border-b border-border/60 px-3 text-xs select-none hover:bg-muted/60 data-[selected]:bg-muted", marked.has(r.i) && "bg-[color-mix(in_oklch,var(--warn)_14%,transparent)]")}
                         >
-                            <div className={cn("flex min-w-0 items-center gap-2 truncate", r.agent && "pl-4")}>
+                            <WaterfallRowHeader className={cn(CELL, "flex h-full min-w-0 items-center gap-1.5 pl-[calc((var(--waterfall-level)-1)*16px)]")}>
+                                {item.children
+                                    ? <WaterfallIndicator className="flex text-muted-foreground [&>svg]:transition-transform data-[expanded]:[&>svg]:rotate-90"><ChevronRight className="size-3" aria-hidden="true" /></WaterfallIndicator>
+                                    : null}
                                 <span className="inline-block size-2 shrink-0 rounded-sm" style={{ background: color }} />
                                 <span className={cn("truncate", r.kind !== "prompt" && r.kind !== "session" && r.kind !== "stop" && "num", loaded && "font-medium")}>{rowName(r)}</span>
-                            </div>
-                            <div className="text-muted-foreground">{ROW_LABEL[r.kind]}</div>
-                            <div className="truncate text-muted-foreground">{r.reason ? REASON_LABEL[r.reason] ?? r.reason : ""}</div>
-                            <div className="num truncate text-[11px] text-muted-foreground" title={r.trigger ?? r.reads?.join(", ") ?? ""}>{r.trigger ? shortPath(r.trigger, 2) : r.reads ? shortPath(r.reads[0], 2) + (r.reads.length > 1 ? ` 외 ${r.reads.length - 1}` : "") : ""}</div>
-                            <div className="num text-right">{r.chars ? n(r.chars) : ""}</div>
-                            <div className="num text-right text-muted-foreground">{secs(r.at)}</div>
-                            <div className="relative ml-3 h-full">
-                                {ticks.map((t) => <span key={t} className="absolute top-0 h-full w-px bg-border/70" style={{ left: `${t / D * 100}%` }} />)}
-                                {r.dur > 0
-                                    ? <span className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-[2px]" style={{ left: `${left}%`, width: `max(${r.dur / D * 100}%, 3px)`, background: color }} />
+                                {item.children && <span className="num shrink-0 text-[11px] text-muted-foreground">{item.children.length}</span>}
+                            </WaterfallRowHeader>
+                            <WaterfallCell className={cn(CELL, "text-muted-foreground")}>{ROW_LABEL[r.kind]}</WaterfallCell>
+                            <WaterfallCell className={cn(CELL, "truncate text-muted-foreground")}>{r.reason ? REASON_LABEL[r.reason] ?? r.reason : ""}</WaterfallCell>
+                            <WaterfallCell className={cn(CELL, "num truncate text-[11px] text-muted-foreground")} title={r.trigger ?? r.reads?.join(", ") ?? ""}>
+                                {r.trigger ? shortPath(r.trigger, 2) : r.reads ? shortPath(r.reads[0], 2) + (r.reads.length > 1 ? ` 외 ${r.reads.length - 1}` : "") : ""}
+                            </WaterfallCell>
+                            <WaterfallCell className={cn(CELL, "num text-right")}>{r.chars ? n(r.chars) : ""}</WaterfallCell>
+                            <WaterfallCell className={cn(CELL, "num text-right text-muted-foreground")}>{secs(r.at)}</WaterfallCell>
+                            <WaterfallBar className={cn(CELL, "relative ml-3 h-full overflow-hidden")}>
+                                {r.at > end ? null : r.dur > 0
+                                    ? <span className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-[2px]" style={{ left: "var(--waterfall-start)", width: "max(var(--waterfall-size), 3px)", background: color }} />
                                     : loaded
-                                        ? <span className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[1px]" style={{ left: `${left}%`, background: color }} />
-                                        : <span className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2" style={{ left: `${left}%`, background: color }} />}
-                                {loaded && r.chars ? <span className="num absolute top-1/2 -translate-y-1/2 text-[10.5px] text-muted-foreground" style={left > 80 ? { right: `${100 - left + 1.2}%` } : { left: `calc(${left + r.dur / D * 100}% + 10px)` }}>+{n(r.chars)}자</span> : null}
-                            </div>
-                        </div>
+                                        ? <span className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[1px]" style={{ left: "var(--waterfall-start)", background: color }} />
+                                        : <span className="absolute top-1/2 h-3.5 w-0.5 -translate-y-1/2" style={{ left: "var(--waterfall-start)", background: color }} />}
+                                {loaded && r.chars && r.at <= end
+                                    ? <span className="num absolute top-1/2 -translate-y-1/2 text-[10.5px] text-muted-foreground" style={late ? { right: "calc(100% - var(--waterfall-start) + 10px)" } : { left: "calc(var(--waterfall-start) + var(--waterfall-size) + 10px)" }}>+{n(r.chars)}자</span>
+                                    : null}
+                            </WaterfallBar>
+                        </WaterfallRow>
                     );
                 })}
-            </div>
+            </Waterfall>
 
             <div className="flex items-center gap-4 border-t bg-secondary px-3 py-1.5 text-[11px] text-muted-foreground">
                 <span>사건 <span className="num text-foreground">{rows.length}</span> / {trace.rows.length}</span>

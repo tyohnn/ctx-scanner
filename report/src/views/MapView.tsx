@@ -1,12 +1,9 @@
-import { BaseEdge, getBezierPath, MarkerType, type Edge as FlowEdge, type EdgeProps, type Node as FlowNode, type NodeProps } from "@xyflow/react";
+import { Switch, SwitchThumb } from "@ui-sdk/react/switch";
+import { Background, BaseEdge, Controls, getBezierPath, Handle, MarkerType, Panel, Position, ReactFlow, type Edge as FlowEdge, type EdgeProps, type Node as FlowNode, type NodeProps } from "@xyflow/react";
 import { FileText, FolderTree, ListTree, Play, Route, Sparkles, Bot, Webhook, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
+import "@xyflow/react/dist/style.css";
 
-import { Canvas } from "@/components/ai-elements/canvas";
-import { Controls } from "@/components/ai-elements/controls";
-import { Edge } from "@/components/ai-elements/edge";
-import { Node, NodeContent } from "@/components/ai-elements/node";
-import { Panel } from "@/components/ai-elements/panel";
 import { LevelDot, Meter } from "@/components/bits";
 import { LEVELS, n, secs, type ContextMap, type Kind, type Level, type MapNode, type Trace } from "@/data";
 import { cn } from "@/lib/utils";
@@ -24,11 +21,12 @@ function CtxNode({ data }: NodeProps<FlowNode<CtxData>>)
     const Icon = data.pseudo === "trigger" ? (data.label === "세션 시작" ? Play : Zap) : data.pseudo === "listing" ? ListTree : ICON[node!.kind];
     const level = data.level ?? node?.level;
     return (
-        <Node
-            handles={{ target: true, source: true }}
-            className={cn("w-[196px] shadow-none transition-opacity", data.dim === "far" && "opacity-25", data.dim === "quiet" && "opacity-75", data.picked && "ring-2 ring-primary", data.pseudo === "trigger" && "bg-secondary")}
+        <div
+            className={cn("relative w-[196px] rounded-md border bg-card text-card-foreground transition-opacity", data.dim === "far" && "opacity-25", data.dim === "quiet" && "opacity-75", data.picked && "ring-2 ring-primary", data.pseudo === "trigger" && "bg-secondary")}
         >
-            <NodeContent className="px-2.5 py-2">
+            <Handle position={Position.Left} type="target" />
+            <Handle position={Position.Right} type="source" />
+            <div className="px-2.5 py-2">
                 <div className="flex items-center gap-1.5">
                     {level ? <LevelDot level={level} /> : null}
                     <Icon className="size-3.5 shrink-0 text-muted-foreground" />
@@ -45,8 +43,8 @@ function CtxNode({ data }: NodeProps<FlowNode<CtxData>>)
                                 : <span className="num">{n(node!.chars)}자</span>}
                     {data.at != null && <span className="num ml-auto shrink-0 text-foreground">+{secs(data.at)}</span>}
                 </div>
-            </NodeContent>
-        </Node>
+            </div>
+        </div>
     );
 }
 
@@ -62,15 +60,27 @@ function LaneNode({ data }: NodeProps<FlowNode<{ level?: Level; title: string; w
     );
 }
 
-// 모델이 골라야 가는 길은 점선으로 그립니다. AI Elements 의 점선 간선은 흐림을 받지 않아서 따로 둡니다.
+// 모델이 골라야 가는 길은 점선으로 그립니다.
 function SoftEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style }: EdgeProps)
 {
     const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
     return <BaseEdge id={id} path={path} style={{ strokeDasharray: "4 4", ...style }} />;
 }
 
+// 이 세션이 실제로 지나간 길에는 점 하나가 길을 따라 흐릅니다.
+function WalkedEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style }: EdgeProps)
+{
+    const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+    return (
+        <>
+            <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} />
+            <circle r="3.5" fill="var(--primary)"><animateMotion dur="2s" path={path} repeatCount="indefinite" /></circle>
+        </>
+    );
+}
+
 const nodeTypes = { ctx: CtxNode, lane: LaneNode };
-const edgeTypes = { animated: Edge.Animated, soft: SoftEdge };
+const edgeTypes = { animated: WalkedEdge, soft: SoftEdge };
 
 interface Props { map: ContextMap; trace: Trace | null; selected: string | null; onSelect: (id: string | null) => void }
 
@@ -182,25 +192,28 @@ export function MapView({ map, trace, selected, onSelect }: Props)
 
     return (
         <div className="relative h-full">
-            <Canvas
+            <ReactFlow
                 nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
-                panOnDrag selectionOnDrag={false} nodesDraggable={false} nodesConnectable={false} elementsSelectable minZoom={0.25} maxZoom={1.5}
+                fitView panOnScroll zoomOnDoubleClick={false} panOnDrag selectionOnDrag={false} nodesDraggable={false} nodesConnectable={false} elementsSelectable minZoom={0.25} maxZoom={1.5}
                 fitViewOptions={{ padding: 0.04 }}
                 onNodeClick={(_, node) => onSelect(node.type === "ctx" && !(node.data as CtxData).pseudo ? node.id : null)}
                 onPaneClick={() => onSelect(null)}
             >
-                <Controls showInteractive={false} position="bottom-left" />
-                <Panel position="bottom-center" className="m-3 flex items-center gap-4 px-3 py-1.5 text-[11px] text-muted-foreground">
+                <Background bgColor="var(--sidebar)" />
+                <Controls showInteractive={false} position="bottom-left" className="gap-px overflow-hidden rounded-md border bg-card p-1 shadow-none! [&>button]:rounded-md [&>button]:border-none! [&>button]:bg-transparent! [&>button]:hover:bg-secondary!" />
+                <Panel position="bottom-center" className="m-3 flex overflow-hidden rounded-md border bg-card items-center gap-4 px-3 py-1.5 text-[11px] text-muted-foreground">
                     <span className="flex items-center gap-1.5"><svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="currentColor" strokeWidth="1.5" /></svg>기계가 싣는 길</span>
                     <span className="flex items-center gap-1.5"><svg width="26" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3" /></svg>모델이 골라야 가는 길</span>
                     {trace && (
                         <label className="no-print flex cursor-pointer items-center gap-1.5 text-foreground">
-                            <input type="checkbox" checked={overlay} onChange={(e) => setOverlay(e.target.checked)} className="accent-[var(--primary)]" />
+                            <Switch checked={overlay} onCheckedChange={(v) => setOverlay(v)} className="relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full bg-ring outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 data-[checked]:bg-primary">
+                                <SwitchThumb className="block size-3 translate-x-0.5 rounded-full bg-card transition-transform data-[checked]:translate-x-3.5" />
+                            </Switch>
                             이 세션이 지나간 길 겹쳐 보기
                         </label>
                     )}
                 </Panel>
-            </Canvas>
+            </ReactFlow>
         </div>
     );
 }

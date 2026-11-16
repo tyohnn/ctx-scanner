@@ -1,6 +1,8 @@
 import { CornerDownRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Input } from "@ui-sdk/react/input";
+
 import { Chars, LevelDot, Meter } from "@/components/bits";
 import { KIND_LABEL, n, type ContextMap, type MapNode } from "@/data";
 import { cn } from "@/lib/utils";
@@ -30,8 +32,8 @@ export function FilesView({ map, selected, onSelect }: Props)
             <div className="flex min-h-0 flex-col border-r">
                 <div className="border-b px-4 py-3">
                     <div className="mb-1.5 text-xs font-semibold">이 파일을 열면 무엇이 실리나</div>
-                    <input
-                        value={path} onChange={(e) => setPath(e.target.value)} spellCheck={false} placeholder="apps/admin/src/app/page.tsx"
+                    <Input
+                        aria-label="열어 볼 파일 경로" value={path} onValueChange={(v) => setPath(v)} spellCheck={false} placeholder="apps/admin/src/app/page.tsx"
                         className="num w-full rounded border bg-card px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
                     />
                     <div className="mt-1.5 text-[11px] text-muted-foreground">경로를 적거나 오른쪽 표의 줄을 누릅니다. 아직 없는 파일의 경로도 됩니다.</div>
