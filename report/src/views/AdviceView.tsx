@@ -30,7 +30,9 @@ export function AdviceView({ map, trace, onSelect }: Props)
     const all: Suggestion[] = [...map.suggestions, ...(trace?.findings ?? []).map((f) => ({ ...f, kind: "trace", confidence: "measured" as const }))];
     const order = { high: 0, medium: 1, low: 2 };
     const kinds = GROUPS.find((g) => g.key === group)!.kinds;
-    const shown = all.filter((s) => !kinds.length || kinds.includes(s.kind)).sort((a, b) => order[a.severity] - order[b.severity]);
+    // 「그대로 둠」과 「거짓 신호」로 판정한 제안은 아래로 내리고 흐리게 보여 줍니다.
+    const settled = (s: Suggestion) => s.verdict === "keep" || s.verdict === "false-positive";
+    const shown = all.filter((s) => !kinds.length || kinds.includes(s.kind)).sort((a, b) => Number(settled(a)) - Number(settled(b)) || order[a.severity] - order[b.severity]);
 
     // 항상 로드되는 내용을 무엇이 차지하는지 한 줄로 보여 줍니다. 루트의 섹션과 스킬 설명이 같은 공간을 나눠 씁니다.
     const verdict = (title: string) => all.find((s) => s.id === `demote:${title}`) ? "옮길 수 있음" : all.find((s) => s.id === `ablate:${title}`) ? "테스트 필요" : null;
@@ -49,6 +51,7 @@ export function AdviceView({ map, trace, onSelect }: Props)
                         <div>
                             <div className="text-sm font-semibold">모든 세션에 드는 비용</div>
                             <div className="text-xs text-muted-foreground">어떤 일을 시키든 처음부터 로드되는 내용입니다. 여기서 뺀 만큼 모든 세션이 가벼워집니다.</div>
+                            {map.meta.notes?.map((t) => <div key={t} className="mt-0.5 text-xs text-muted-foreground"><Marked text={t} /></div>)}
                         </div>
                         <Chars value={map.meta.alwaysChars} className="text-xl font-semibold" />
                     </div>
@@ -77,12 +80,13 @@ export function AdviceView({ map, trace, onSelect }: Props)
 
                 <div className="space-y-2 pb-8">
                     {shown.map((s) => (
-                        <article key={s.id} className="cn-card gap-0 p-4">
+                        <article key={s.id} className={cn("cn-card gap-0 p-4", settled(s) && "opacity-60")}>
                             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                                 <span className="inline-block size-2 rounded-full" style={{ background: SEVERITY[s.severity].color }} />
                                 <span>{SEVERITY[s.severity].label}</span>
                                 {s.confidence && <span className="cn-badge cn-badge-variant-secondary inline-flex shrink-0 items-center whitespace-nowrap" title={CONFIDENCE[s.confidence].hint}>{CONFIDENCE[s.confidence].label}</span>}
-                                {s.saves ? <span className="num ml-auto text-foreground">{(s.kind === "placement" && !s.id.startsWith("always-rule:")) || s.id.startsWith("long-rule:") ? "조건이 맞을 때 로드되는 내용" : "항상 로드되는 내용"} −{n(s.saves)}자</span> : null}
+                                {s.verdict && <span className="cn-badge cn-badge-variant-outline inline-flex shrink-0 items-center whitespace-nowrap">{VERDICT[s.verdict]}</span>}
+                                {s.saves ? <span className="num ml-auto text-foreground">{savesScope(s) === "always" ? "항상 로드되는 내용" : "조건이 맞을 때 로드되는 내용"} −{n(s.saves)}자</span> : null}
                             </div>
                             <h3 className="mt-1.5 text-sm font-semibold leading-snug"><Marked text={s.title} /></h3>
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><Marked text={s.evidence} /></p>
@@ -107,6 +111,16 @@ export function AdviceView({ map, trace, onSelect }: Props)
             </div>
         </div>
     );
+}
+
+const VERDICT: Record<NonNullable<Suggestion["verdict"]>, string> = { accept: "받아들임", modify: "고쳐서 받아들임", keep: "그대로 둠", "false-positive": "거짓 신호" };
+
+// 줄어드는 양이 항상 로드되는 내용에서인지, 파일을 열 때 로드되는 내용에서인지 정합니다.
+function savesScope(s: Suggestion): "always" | "conditional"
+{
+    if (s.savesScope) return s.savesScope;
+    if (s.kind === "demote" || s.id.startsWith("always-rule:") || s.id === "pointed-skills" || s.id.startsWith("terms-home:CLAUDE.md")) return "always";
+    return "conditional";
 }
 
 // 스크립트가 낸 내용의 백틱 구간을 코드 글꼴로 바꿉니다.

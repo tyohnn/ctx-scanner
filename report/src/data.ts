@@ -28,10 +28,14 @@ export interface Suggestion
 {
     id: string; kind: string; severity: "high" | "medium" | "low"; confidence?: "measured" | "heuristic" | "needs-test";
     title: string; evidence: string; action: string; targets?: string[]; saves?: number; items?: string[]; rows?: number[];
+    // advise 스킬이 읽고 내린 판정입니다. 없으면 아직 판정하지 않은 제안입니다.
+    verdict?: "accept" | "modify" | "keep" | "false-positive";
+    // `saves` 가 어느 쪽에서 줄어드는 양인지입니다. 없으면 제안 종류로 짐작합니다.
+    savesScope?: "always" | "conditional";
 }
 export interface ContextMap
 {
-    meta: { repo: string; commit: string; generatedAt: string; limits: { onDemand200k: number; onDemand1m: number; skillListing: number }; files: number; sourceFiles: number; alwaysChars: number; areas?: { id: string; label: string; paths: string[] }[]; sources?: Partial<Record<Source, { count: number; chars: number }>> };
+    meta: { repo: string; commit: string; generatedAt: string; limits: { onDemand200k: number; onDemand1m: number; skillListing: number }; files: number; sourceFiles: number; alwaysChars: number; notes?: string[]; areas?: { id: string; label: string; paths: string[] }[]; sources?: Partial<Record<Source, { count: number; chars: number }>> };
     nodes: MapNode[]; edges: MapEdge[]; stacks: Stack[]; flows?: Flow[]; suggestions: Suggestion[];
 }
 export type RowKind = "session" | "prompt" | "instruction" | "skill" | "tool" | "subagent" | "compact" | "stop";
