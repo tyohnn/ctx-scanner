@@ -66,8 +66,16 @@ const sections = (t) =>
     const res = [];
     let cur = { title: "(머리말)", text: "" };
     let seen = false;
+    let fence = false;
     for (const line of t.split("\n"))
     {
+        // 코드 블록 안의 `#` 은 셸 주석이지 제목이 아닙니다.
+        if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+        if (fence)
+        {
+            cur.text += line + "\n";
+            continue;
+        }
         // `##` 마다 섹션을 나눕니다. `#` 는 파일의 첫 제목이면 머리말에 두고, 그 뒤에 나오면 섹션으로 나눕니다.
         // 생성기가 파일 끝에 붙이는 `# ...` 블록이 앞 섹션에 묻히지 않게 하려는 것입니다.
         const top = line.match(/^#\s+(.+)$/);
@@ -330,7 +338,6 @@ for (const n of named)
 {
     const callers = edges.filter((e) => e.to === n.id && ["root", "nested", "rule"].includes(byId.get(e.from).kind)).map((e) => e.from);
     n.namedBy = callers;
-    n.viaSkill = [];
     if (callers.length) n.level = 4;
 }
 for (let changed = true; changed;)
