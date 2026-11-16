@@ -65,9 +65,14 @@ const sections = (t) =>
 {
     const res = [];
     let cur = { title: "(머리말)", text: "" };
+    let seen = false;
     for (const line of t.split("\n"))
     {
-        const h = line.match(/^##\s+(.+)$/);
+        // `##` 마다 섹션을 나눕니다. `#` 는 파일의 첫 제목이면 머리말에 두고, 그 뒤에 나오면 섹션으로 나눕니다.
+        // 생성기가 파일 끝에 붙이는 `# ...` 블록이 앞 섹션에 묻히지 않게 하려는 것입니다.
+        const top = line.match(/^#\s+(.+)$/);
+        const h = line.match(/^##\s+(.+)$/) ?? (top && seen ? top : null);
+        if (top || h) seen = true;
         if (h)
         {
             res.push(cur);
@@ -121,7 +126,10 @@ const TERM_TABLE = /^\|\s*(용어|term)\s*\|/im;
 const roleOf = (f, text, globs) =>
 {
     if (!globs.length) return "general";
-    if (/(^|\/)(glossary|domains?|용어)(\/|[-.])/i.test(f.slice(".claude/rules/".length)) || TERM_TABLE.test(text)) return "domain";
+    // 폴더 이름(`glossary/` · `domain/`)이나 `용어` 로 시작하는 파일 이름만 봅니다. `domain-packages.md` 처럼 이름에 domain 이
+    // 들어간 계층 규칙을 용어 규칙으로 잘못 읽지 않게 합니다.
+    const rel = f.slice(".claude/rules/".length);
+    if (/(^|\/)(glossary|domains?)\//i.test(rel) || /(^|\/)용어[^/]*\.md$/.test(rel) || TERM_TABLE.test(text)) return "domain";
     return "layer";
 };
 // 용어 표의 첫 칸을 읽습니다. 같은 용어가 두 곳에 정의되면 어느 뜻을 따를지 정해져 있지 않습니다.
@@ -316,12 +324,26 @@ for (const e of edges) uniq.set(`${e.from}→${e.to}→${e.kind}`, e);
 edges.length = 0;
 edges.push(...uniq.values());
 
-// 지시문이 이름을 언급한 스킬과 서브에이전트는 4단계로 높입니다. 스킬끼리 호출한 것은 세지 않습니다.
+// 지시문이 이름을 언급한 스킬과 서브에이전트는 4단계로 높입니다. 4단계 스킬이 다시 이름을 언급한 스킬도 4단계입니다.
+// 지시문 → 스킬 → 스킬로 이어지는 길이 있으면 모델이 그 스킬을 열 이유가 있기 때문입니다(`viaSkill` 에 적습니다).
 for (const n of named)
 {
     const callers = edges.filter((e) => e.to === n.id && ["root", "nested", "rule"].includes(byId.get(e.from).kind)).map((e) => e.from);
     n.namedBy = callers;
+    n.viaSkill = [];
     if (callers.length) n.level = 4;
+}
+for (let changed = true; changed;)
+{
+    changed = false;
+    for (const n of named.filter((x) => x.level === 5))
+    {
+        const via = edges.filter((e) => e.to === n.id && e.kind === "soft" && byId.get(e.from).kind === "skill" && byId.get(e.from).level === 4).map((e) => e.from);
+        if (!via.length) continue;
+        n.viaSkill = via;
+        n.level = 4;
+        changed = true;
+    }
 }
 
 // ── 파일마다 누적되는 것 ───────────────────────────────────────────────────
@@ -369,6 +391,10 @@ for (const c of [arg("config", ""), ".claude/ctxscope.json"].filter(Boolean))
     try { config = JSON.parse(readFileSync(resolve(root, c), "utf8")); break; }
     catch { /* 설정이 없으면 기본 영역을 씁니다 */ }
 }
+// 플로우와 빈칸 검사에서 뺄 경로입니다. 저장소 맨 위의 점으로 시작하는 폴더(.design-sync 같은 받아 둔 자료)는 기본으로 빼고,
+// 원본을 그대로 옮겨 둔 패키지처럼 일부러 규약을 걸지 않는 곳은 `.claude/ctxscope.json` 의 `ignore` 에 적습니다.
+const ignoreRes = [".*/**", ...(config.ignore ?? [])].map((g) => new RegExp(globToRe(g)));
+const ignored = (f) => ignoreRes.some((r) => r.test(f));
 const areas = (config.areas ?? DEFAULT_AREAS).map((a, i) => ({ ...a, order: a.order ?? i, res: a.paths.map((g) => new RegExp(globToRe(g))) }));
 const areaOf = (f) => areas.find((a) => a.res.some((r) => r.test(f)));
 const scopeOf = (f) =>
@@ -383,14 +409,22 @@ const skillOfPath = (p) => nodes.find((n) => n.kind === "skill" && p.startsWith(
 const codeFiles = src.filter((x) => /\.(ts|tsx|js|jsx|mjs|cjs|sql|py|go|rs|css)$/.test(x));
 for (const n of nodes.filter((x) => x.source === "rule-paths"))
 {
-    const hit = codeFiles.filter((f) => n.globs.some((g) => new RegExp(g.re).test(f)));
+    // 영역은 테스트를 먼저 봐서(`actions/x.test.ts` 는 테스트) 테스트가 많은 폴더의 규칙이 테스트 영역으로 쏠립니다.
+    // 그래서 테스트 파일을 뺀 코드 파일로 먼저 세고, 테스트만 맞는 규칙일 때만 테스트 영역으로 봅니다. 분모도 같은 파일들입니다.
+    const all = codeFiles.filter((f) => !ignored(f) && n.globs.some((g) => new RegExp(g.re).test(f)));
+    const nonTest = all.filter((f) => areaOf(f)?.id !== "test");
+    const hit = nonTest.length >= all.length / 2 ? nonTest : all;
     const count = {};
     for (const f of hit) { const a = areaOf(f)?.id; if (a) count[a] = (count[a] ?? 0) + 1; }
-    n.areas = Object.entries(count).filter(([a, c]) => c / n.matchedFiles >= 0.25 && !["package", "app"].includes(a)).sort((a, b) => b[1] - a[1]).map(([a]) => a);
+    const share = Object.entries(count).filter(([, c]) => hit.length && c / hit.length >= 0.25).sort((a, b) => b[1] - a[1]).map(([a]) => a);
+    // 코드 파일의 절반 넘게 걸리는 규칙(파일 크기 제한 같은 것)은 영역을 가리지 않습니다. 「패키지 코드」 · 「앱의 그 밖의 코드」는
+    // 다른 영역이 없을 때만 씁니다. 그런 규칙은 그 위치 안의 모든 영역에서 계층 칸에 들어갑니다(도메인 패키지 규약 같은 것).
+    const narrow = share.filter((a) => !["package", "app"].includes(a));
+    n.areas = all.length / codeFiles.length >= 0.5 ? [] : narrow.length ? narrow : share;
     if (n.role === "layer" && !n.areas.length) n.role = "common";
 }
 const cells = new Map();
-for (const f of codeFiles)
+for (const f of codeFiles.filter((x) => !ignored(x)))
 {
     const area = areaOf(f);
     if (!area) continue;
@@ -412,7 +446,7 @@ const flows = [...cells.values()].map((cell) =>
     const sum = (ids) => ids.reduce((a, id) => a + byId.get(id).chars, 0);
     const folder = axis((n) => n.kind === "nested");
     // 계층 칸에는 이 영역의 규칙만 둡니다. 다른 영역에 몰려 있는 규칙과 영역을 가리지 않는 규칙도 로드되지만 따로 적습니다.
-    const layer = axis((n) => n.role === "layer" && n.areas.includes(cell.area.id));
+    const layer = axis((n) => n.role === "layer" && (n.areas.includes(cell.area.id) || n.areas.some((a) => a === "package" || a === "app")));
     const common = axis((n) => n.kind === "rule" && n.role !== "domain" && !layer.includes(n.id));
     const domain = axis((n) => n.role === "domain");
     // 필요할 때만: 로드된 지시문이 이름이나 경로로 가리키는 스킬, 그리고 그 스킬이 다시 가리키는 스킬입니다.
@@ -512,7 +546,7 @@ for (const n of nodes.filter((x) => x.kind === "nested"))
             id: `split:${n.id}:${s.title}`, kind: "placement", severity: s.chars >= 3000 ? "medium" : "low", confidence: "heuristic", targets: [n.id],
             title: `${n.title} 의 「${s.title}」 섹션은 \`${s.narrow.dir.slice(n.dir.length)}/\` 에서만 쓰입니다`,
             evidence: `이 섹션이 참조하는 경로 ${s.narrow.paths}곳이 모두 \`${s.narrow.dir}/\` 아래입니다. 그곳의 파일은 이 폴더의 ${Math.round(s.narrow.share * 100)}%(${s.narrow.files.toLocaleString()}개)인데, 지금은 폴더의 어느 파일을 열어도 ${s.chars.toLocaleString()}자가 함께 로드됩니다.`,
-            action: `섹션을 \`paths: ["${s.narrow.dir}/**"]\` 인 경로 규칙으로 옮깁니다. 다른 앱에도 같은 규약이 있으면 경로를 묶어 규칙 하나로 둡니다.`,
+            action: `그 폴더에만 걸리는 내용이면 \`${s.narrow.dir}/CLAUDE.md\` 로 옮기고 이 지시문에는 한 줄만 남깁니다. 다른 앱에도 같은 규약이 있으면 폴더 이름 기준의 경로 규칙 하나로 묶습니다.`,
             saves: s.chars,
         });
     }
@@ -645,7 +679,6 @@ if (bare && bare.files / src.length > 0.1)
 // 그래서 같은 말은 한 곳에만 두고(겹침 없이), 건드리는 파일마다 필요한 규약이 빠짐없이 로드되게(빈칸 없이) 맞춥니다.
 const pathRules = nodes.filter((n) => n.source === "rule-paths");
 const domainRules = pathRules.filter((n) => n.role === "domain");
-const layerRules = pathRules.filter((n) => n.role === "layer");
 const matchSet = new Map(pathRules.map((n) => [n.id, new Set(files.filter((x) => n.globs.some((g) => new RegExp(g.re).test(x))))]));
 
 // 같은 용어가 두 곳에 정의됨
@@ -693,6 +726,8 @@ for (let i = 0; i < pathRules.length; i++)
     {
         const [a, b] = [pathRules[i], pathRules[j]];
         if (a.role !== b.role) continue;
+        // 둘 다 저장소 대부분에 걸리는 규칙이면 「broad:」 제안이 이미 다룹니다.
+        if (a.matchedFiles / files.length >= 0.5 && b.matchedFiles / files.length >= 0.5) continue;
         const [sa, sb] = [matchSet.get(a.id), matchSet.get(b.id)];
         if (sa.size < 5 || sb.size < 5) continue;
         let both = 0;
@@ -749,7 +784,7 @@ for (const area of areas)
         suggestions.push({
             id: `no-layer:${area.id}`, kind: "mece", severity: "low", confidence: "heuristic", targets: [...new Set(row.flatMap((f) => f.folder))].slice(0, 6),
             title: `${area.label} 영역에는 계층 규칙이 없습니다`,
-            evidence: `${row.length}곳에 파일 ${total.toLocaleString()}개가 있습니다.${inFolder.length ? ` 지금은 ${inFolder.length}곳에서 폴더 지시문이 대신 로드되는데, 폴더 지시문은 그 폴더의 다른 종류 파일을 열 때도 전부 로드됩니다.` : " 이 파일을 열어도 그 종류에 맞는 규약은 로드되지 않습니다."}`,
+            evidence: `${row.length}곳에 파일 ${total.toLocaleString()}개가 있습니다.${inFolder.length ? ` ${inFolder.length}곳에서는 폴더 지시문만 로드됩니다. 그 안에 이 영역의 규약이 있는지는 읽어 봐야 알고, 있더라도 그 폴더의 다른 종류 파일을 열 때도 함께 로드됩니다.` : " 이 파일을 열어도 그 종류에 맞는 규약은 로드되지 않습니다."}`,
             action: `이 영역을 만드는 규약(금지와 핵심)이 여러 곳에 공통이면 \`paths: ${JSON.stringify(area.paths.slice(0, 2))}\` 인 계층 규칙 하나로 둡니다. 1,500자 안팎으로 쓰고 절차와 예시는 스킬로 넘깁니다.`,
         });
     }
@@ -773,7 +808,8 @@ if (domainRules.length)
 
 // 긴 규칙: 규칙은 금지와 핵심만 두고 절차와 예시는 스킬로 넘김
 const RULE_TARGET = 1500;
-for (const n of layerRules.filter((x) => x.chars >= RULE_TARGET * 2))
+// 계층 규칙만이 아니라 영역을 가리지 않는 규칙도 봅니다. 영역이 정해지지 않았다고 길이 검사에서 빠지면 안 됩니다.
+for (const n of pathRules.filter((x) => x.role !== "domain" && x.chars >= RULE_TARGET * 2))
 {
     const skills = softTo(n.id).filter((id) => byId.get(id)?.kind === "skill");
     const code = (read(n.path).match(/^```/gm) ?? []).length / 2;
@@ -815,11 +851,13 @@ for (const n of nodes.filter((x) => x.kind === "skill" && ["user-invocable-only"
     });
 }
 
+// `hooks/{usage,inquiries}/CLAUDE.md` 처럼 중괄호로 묶어 적은 경로를 펼쳐서 봅니다.
+const expandBraces = (text) => text.replace(/([^\s`{}]*)\{([^{}\s]+,[^{}\s]+)\}([^\s`{}]*)/g, (_, a, list, b) => list.split(",").map((x) => a + x + b).join(" "));
 // 앱 지시문이 색인 역할을 하는지: 하위 폴더의 지시문을 상위가 적어 두지 않으면 있는지조차 알 수 없음
 for (const n of nested)
 {
     const parent = [...nested].reverse().find((p) => p !== n && n.dir.startsWith(p.dir));
-    if (!parent || read(parent.path).includes(n.dir.slice(parent.dir.length).replace(/\/$/, ""))) continue;
+    if (!parent || expandBraces(read(parent.path)).includes(n.dir.slice(parent.dir.length).replace(/\/$/, ""))) continue;
     suggestions.push({
         id: `unindexed:${n.id}`, kind: "mece", severity: "low", confidence: "measured", targets: [parent.id, n.id],
         title: `${parent.title} 지시문에 하위 폴더 \`${n.dir.slice(parent.dir.length)}\` 의 지시문이 적혀 있지 않습니다`,
@@ -840,7 +878,7 @@ catch { /* 깃이 없으면 비워 둡니다 */ }
 
 const map = {
     schema: 1,
-    meta: { areas: [...areas].sort((a, b) => a.order - b.order).map(({ id, label, paths }) => ({ id, label, paths })), repo: basename(root), commit, generatedAt: new Date().toISOString(), limits: LIMITS, files: files.length, sourceFiles: src.length, alwaysChars, sources },
+    meta: { areas: [...areas].sort((a, b) => a.order - b.order).map(({ id, label, paths }) => ({ id, label, paths })), repo: basename(root), commit, generatedAt: new Date().toISOString(), limits: LIMITS, notes: ["항상 로드되는 내용은 이 저장소의 루트 CLAUDE.md · 규칙 · `.claude/skills` · `.claude/agents` 만 셉니다. 켜 둔 플러그인과 사용자 설정의 스킬 설명은 세션마다 달라서 빠져 있습니다."], files: files.length, sourceFiles: src.length, alwaysChars, sources },
     nodes, edges, stacks, flows, suggestions,
 };
 mkdirSync(dirname(out), { recursive: true });
