@@ -76,8 +76,8 @@ export function App()
         { key: "areas", label: "영역 지도", show: !!map.flows?.length },
         { key: "files", label: "파일", show: true },
         { key: "map", label: "맵", show: true },
-        { key: "timeline", label: "타임라인", badge: traces.length || undefined, show: traces.length > 0 },
-        { key: "tests", label: "시나리오", badge: tests?.scenarios.length, show: !!tests },
+        { key: "timeline", label: "타임라인", badge: traces.length || undefined, show: true },
+        { key: "tests", label: "시나리오", badge: tests?.scenarios.length, show: true },
     ];
     document.title = `ctxscope · ${report.title ?? map.meta.repo}`;
 
@@ -107,14 +107,27 @@ export function App()
                         <TabsContent value="flow" className="h-full"><FlowView map={map} filter={filter} onFilter={setFilter} onSelect={setSelected} /></TabsContent>
                         <TabsContent value="areas" className="h-full"><AreaMapView map={map} onOpenCell={openCell} /></TabsContent>
                         <TabsContent value="map" className="h-full"><MapView map={map} trace={trace} selected={selected} onSelect={setSelected} /></TabsContent>
-                        {trace && <TabsContent value="timeline" className="h-full"><TimelineView key={trace.session} trace={trace} traces={traces} onPickTrace={setTraceIndex} selected={selected} onSelect={setSelected} /></TabsContent>}
+                        <TabsContent value="timeline" className="h-full">{trace ? <TimelineView key={trace.session} trace={trace} traces={traces} onPickTrace={setTraceIndex} selected={selected} onSelect={setSelected} /> : <NoData title="이 측정에는 세션 기록이 없습니다" body="세션 기록은 이 저장소에서 끝난 클로드 코드 세션의 로그입니다. 보고서를 만드는 세션 자신의 기록은 뺍니다. trace 스킬로 세션 기록을 읽은 뒤 보고서를 다시 만들면 여기에 나옵니다." />}</TabsContent>
                         <TabsContent value="files" className="h-full"><FilesView map={map} selected={selected} onSelect={setSelected} /></TabsContent>
-                        {tests && <TabsContent value="tests" className="h-full"><TestsView tests={tests} onOpenTrace={(s) => { setTraceIndex(traces.findIndex((t) => t.session === s)); setTab("timeline"); }} /></TabsContent>}
+                        <TabsContent value="tests" className="h-full">{tests ? <TestsView tests={tests} onOpenTrace={(s) => { setTraceIndex(traces.findIndex((t) => t.session === s)); setTab("timeline"); }} /> : <NoData title="이 측정에서는 시나리오를 돌리지 않았습니다" body="시나리오는 정해 둔 작업을 새 세션에 맡겨 어떤 지시문이 실제로 읽혔는지 재는 단계입니다. test 스킬로 시나리오를 돌린 뒤 보고서를 다시 만들면 여기에 나옵니다." />}</TabsContent>
                     </main>
                     {/* 상세 패널은 무언가를 골랐을 때만 엽니다. 비어 있을 때 화면을 차지하지 않게 합니다. */}
                     {node && tab !== "tests" && <Inspector map={map} trace={trace} node={node} onSelect={setSelected} />}
                 </div>
             </Tabs>
         </ReactFlowProvider>
+    );
+}
+
+// 자료가 없는 탭도 숨기지 않고 왜 비었는지 알립니다. 탭이 버전마다 생겼다 사라지면 화면이 없어진 것으로 읽힙니다.
+function NoData({ title, body }: { title: string; body: string })
+{
+    return (
+        <div className="grid h-full place-items-center px-6">
+            <div className="max-w-[56ch] space-y-1.5 text-center">
+                <p className="text-sm font-medium">{title}</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">{body}</p>
+            </div>
+        </div>
     );
 }
