@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const GROUPS: { key: string; label: string; kinds: string[] }[] = [
     { key: "all", label: "전체", kinds: [] },
     { key: "demote", label: "늘 실리는 곳에서 빼기", kinds: ["demote"] },
+    { key: "placement", label: "자리 옮기기", kinds: ["placement"] },
     { key: "truncation", label: "잘리는 글", kinds: ["truncation"] },
     { key: "broken", label: "끊긴 길", kinds: ["dead-ref", "dead-glob"] },
     { key: "intent", label: "규약이 닿지 않는 곳", kinds: ["coverage"] },
@@ -80,7 +81,7 @@ export function AdviceView({ map, trace, onSelect }: Props)
                                 <span className="inline-block size-2 rounded-full" style={{ background: SEVERITY[s.severity].color }} />
                                 <span>{SEVERITY[s.severity].label}</span>
                                 {s.confidence && <span className="cn-badge cn-badge-variant-secondary inline-flex shrink-0 items-center whitespace-nowrap" title={CONFIDENCE[s.confidence].hint}>{CONFIDENCE[s.confidence].label}</span>}
-                                {s.saves ? <span className="num ml-auto text-foreground">늘 실리는 글 −{n(s.saves)}자</span> : null}
+                                {s.saves ? <span className="num ml-auto text-foreground">{s.kind === "placement" && !s.id.startsWith("always-rule:") ? "조건이 맞을 때 실리는 글" : "늘 실리는 글"} −{n(s.saves)}자</span> : null}
                             </div>
                             <h3 className="mt-1.5 text-sm font-semibold leading-snug"><Marked text={s.title} /></h3>
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><Marked text={s.evidence} /></p>

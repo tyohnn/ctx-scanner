@@ -102,12 +102,15 @@ for (const f of claudeMds)
     const isRoot = f === "CLAUDE.md" || f === ".claude/CLAUDE.md";
     const dir = isRoot ? "" : f.slice(0, -"CLAUDE.md".length);
     add({
-        id: f, kind: isRoot ? "root" : "nested", path: f, title: isRoot ? "루트 CLAUDE.md" : dir.replace(/\/$/, ""),
+        id: f, kind: isRoot ? "root" : "nested", source: isRoot ? "root" : "folder", path: f, title: isRoot ? "루트 CLAUDE.md" : dir.replace(/\/$/, ""),
         chars: chars(t), lines: lines(t), level: isRoot ? 1 : 2, dir,
         sections: sections(t).map(({ text, ...s }) => s),
         when: isRoot
             ? [{ how: "session_start", text: "세션이 시작될 때 전부 실립니다. 압축 뒤에도 다시 실립니다." }]
-            : [{ how: "nested_traversal", text: `\`${dir}\` 아래 파일을 읽거나 고칠 때 실립니다. 압축 뒤에는 다시 그 폴더를 열어야 돌아옵니다.` }],
+            : [
+                { how: "nested_traversal", text: `\`${dir}\` 아래 파일을 Read · Edit · Write 로 처음 열 때 실립니다. 어느 파일을 열어도 글 전체가 실립니다.` },
+                { how: "append", text: "실릴 때는 대화의 뒤에 붙어서, 앞쪽에 이미 캐시된 부분은 그대로 다시 쓰입니다. 압축 뒤에는 그 폴더를 다시 열어야 돌아옵니다." },
+            ],
         matchedFiles: isRoot ? files.length : files.filter((x) => x.startsWith(dir)).length,
     });
 }
@@ -121,11 +124,14 @@ for (const f of ruleFiles)
     const scoped = globs.length > 0;
     const perGlob = globs.map((g, i) => ({ glob: g, re: res[i], files: files.filter((x) => new RegExp(res[i]).test(x)).length }));
     add({
-        id: f, kind: "rule", path: f, title: basename(f, ".md"), chars: chars(t), lines: lines(t), level: scoped ? 2 : 1,
+        id: f, kind: "rule", source: scoped ? "rule-paths" : "rule-always", path: f, title: basename(f, ".md"), chars: chars(t), lines: lines(t), level: scoped ? 2 : 1,
         globs: perGlob, sections: sections(t).map(({ text, ...s }) => s),
         when: scoped
-            ? [{ how: "path_glob", text: "아래 경로에 맞는 파일을 읽거나 고칠 때 실립니다.", globs }]
-            : [{ how: "session_start", text: "경로 조건이 없어서 세션이 시작될 때 실립니다." }],
+            ? [
+                { how: "path_glob", text: "아래 경로에 맞는 파일을 Read · Edit · Write 로 처음 열 때 실립니다. 폴더가 아니라 파일의 경로를 봅니다.", globs },
+                { how: "append", text: "실릴 때는 대화의 뒤에 붙어서, 앞쪽에 이미 캐시된 부분은 그대로 다시 쓰입니다." },
+            ]
+            : [{ how: "session_start", text: "경로 조건이 없어서 루트 CLAUDE.md 와 똑같이 세션이 시작될 때 실립니다. 모든 요청의 앞쪽에 놓입니다." }],
         matchedFiles: scoped ? files.filter((x) => res.some((r) => new RegExp(r).test(x))).length : files.length,
     });
 }
@@ -188,6 +194,36 @@ for (const sf of [".claude/settings.json"])
             }
         }
     }
+}
+
+// ── 폴더 지시문의 절이 닿는 범위 ─────────────────────────────────────────
+// 폴더 지시문은 그 폴더의 어느 파일을 열어도 전부 실립니다. 절이 가리키는 경로가 폴더의 한 구석에 모여 있으면
+// 그 절은 다른 구석의 파일을 열 때도 함께 실리는 셈입니다. 그런 절을 찾아 「좁은 절」로 적어 둡니다.
+const commonDir = (paths) =>
+{
+    const split = paths.map((p) => (dirs.has(p) ? p : p.slice(0, p.lastIndexOf("/"))).split("/"));
+    const head = [];
+    for (let i = 0; i < Math.min(...split.map((s) => s.length)); i++)
+    {
+        if (!split.every((s) => s[i] === split[0][i])) break;
+        head.push(split[0][i]);
+    }
+    return head.join("/");
+};
+const pathsIn = (text) => [...new Set([...text.matchAll(/`([^`\s]+)`/g)].map((m) => m[1].replace(/[.,:;]+$/, "").replace(/\/$/, "")).filter((p) => p.includes("/") && !/[*<>{}$()|=@]/.test(p) && !/^https?:/.test(p)))];
+for (const n of nodes.filter((x) => x.kind === "nested"))
+{
+    const inDir = files.filter((x) => x.startsWith(n.dir)).length;
+    const full = sections(read(n.path));
+    n.sections = full.map(({ text, ...s }) =>
+    {
+        const hits = pathsIn(text).map((p) => [p, n.dir + p, n.dir + "src/" + p].find((c) => (fileSet.has(c) || dirs.has(c)) && c.startsWith(n.dir))).filter(Boolean);
+        if (hits.length < 2) return s;
+        const dir = commonDir(hits);
+        if (dir.length <= n.dir.length - 1 || /^(src|app|lib)$/.test(dir.slice(n.dir.length))) return s;
+        const count = files.filter((x) => x.startsWith(dir + "/")).length;
+        return { ...s, narrow: { dir, files: count, share: inDir ? count / inDir : 0, paths: hits.length } };
+    });
 }
 
 // ── 간선 ─────────────────────────────────────────────────────────────────
@@ -328,6 +364,85 @@ if (rootNode)
     }
 }
 
+// 자리 옮기기. 폴더 지시문과 경로 규칙은 실리는 단위가 달라서(폴더 전체 · 경로 패턴) 맞지 않는 자리에 놓인 글을 찾습니다.
+for (const n of nodes.filter((x) => x.kind === "nested"))
+{
+    for (const s of n.sections.filter((x) => x.narrow && x.chars >= 800 && x.narrow.share <= 0.5))
+    {
+        suggestions.push({
+            id: `split:${n.id}:${s.title}`, kind: "placement", severity: s.chars >= 3000 ? "medium" : "low", confidence: "heuristic", targets: [n.id],
+            title: `${n.title} 의 「${s.title}」 절은 \`${s.narrow.dir.slice(n.dir.length)}/\` 에서만 쓰입니다`,
+            evidence: `이 절이 가리키는 경로 ${s.narrow.paths}곳이 모두 \`${s.narrow.dir}/\` 아래입니다. 그곳의 파일은 이 폴더의 ${Math.round(s.narrow.share * 100)}%(${s.narrow.files.toLocaleString()}개)인데, 지금은 폴더의 어느 파일을 열어도 ${s.chars.toLocaleString()}자가 함께 실립니다.`,
+            action: `절을 \`paths: ["${s.narrow.dir}/**"]\` 인 경로 규칙으로 옮깁니다. 다른 앱에도 같은 규약이 있으면 경로를 묶어 규칙 하나로 둡니다.`,
+            saves: s.chars,
+        });
+    }
+}
+
+const lineSet = (text) => new Set(text.split("\n").map((l) => l.trim()).filter((l) => l.length >= 12 && !l.startsWith("#")));
+const secs = nodes.filter((x) => ["root", "nested", "rule"].includes(x.kind)).flatMap((node) => sections(read(node.path)).filter((s) => s.chars >= 400).map((s) => ({ node, title: s.title, chars: s.chars, set: lineSet(s.text) })));
+const groupOf = secs.map((_, i) => i);
+const find = (i) => groupOf[i] === i ? i : (groupOf[i] = find(groupOf[i]));
+for (let i = 0; i < secs.length; i++)
+{
+    for (let j = i + 1; j < secs.length; j++)
+    {
+        if (secs[i].node === secs[j].node || !secs[i].set.size || !secs[j].set.size) continue;
+        let both = 0;
+        for (const l of secs[i].set) if (secs[j].set.has(l)) both++;
+        if (both / Math.min(secs[i].set.size, secs[j].set.size) >= 0.5) groupOf[find(j)] = find(i);
+    }
+}
+const dupGroups = new Map();
+secs.forEach((s, i) => dupGroups.set(find(i), [...(dupGroups.get(find(i)) ?? []), s]));
+const inDup = new Set();
+for (const g of [...dupGroups.values()].filter((x) => x.length >= 2))
+{
+    g.forEach((s) => inDup.add(`${s.node.id}#${s.title}`));
+    const total = g.reduce((a, s) => a + s.chars, 0);
+    const folders = g.filter((s) => s.node.kind === "nested").map((s) => s.node.dir.replace(/\/$/, ""));
+    suggestions.push({
+        id: `dup:${g[0].title}:${g.map((s) => s.node.id).join("+")}`, kind: "placement", severity: total >= 4000 ? "medium" : "low", confidence: "measured", targets: [...new Set(g.map((s) => s.node.id))],
+        title: `「${g[0].title}」 절이 ${g.length}곳에 거의 같은 글로 있습니다`,
+        evidence: `${g.map((s) => `${s.node.title} ${s.chars.toLocaleString()}자`).join(", ")}. 줄의 절반 이상이 같습니다. 폴더를 넘나드는 세션에는 같은 글이 여러 번 실리고, 한 곳만 고치면 서로 어긋납니다.`,
+        action: folders.length >= 2
+            ? `여러 폴더에 걸친 규약이므로 \`paths: ["{${folders.join(",")}}/**"]\` 처럼 경로를 묶은 규칙 하나로 옮기고, 폴더마다 다른 점만 그 폴더의 CLAUDE.md 에 남깁니다.`
+            : "한 곳에만 두고 다른 곳은 가리키는 한 줄로 바꿉니다.",
+        saves: total - Math.max(...g.map((s) => s.chars)),
+    });
+}
+const byTitle = new Map();
+for (const s of secs.filter((x) => x.node.kind === "nested" && x.title !== "(머리말)" && !inDup.has(`${x.node.id}#${x.title}`))) byTitle.set(s.title, [...(byTitle.get(s.title) ?? []), s]);
+for (const [title, g] of [...byTitle].filter(([, x]) => new Set(x.map((s) => s.node.id)).size >= 2))
+{
+    suggestions.push({
+        id: `same-topic:${title}`, kind: "placement", severity: "low", confidence: "heuristic", targets: [...new Set(g.map((s) => s.node.id))],
+        title: `「${title}」 절을 폴더 ${g.length}곳이 따로 적고 있습니다`,
+        evidence: `${g.map((s) => `${s.node.title} ${s.chars.toLocaleString()}자`).join(", ")}. 제목은 같고 글은 다릅니다. 같은 규약의 다른 사본인지, 폴더마다 정말 다른 규약인지는 읽어 봐야 압니다.`,
+        action: "같은 규약이면 공통 부분을 경로 규칙 하나로 모으고 폴더에는 차이만 남깁니다. 다른 규약이면 그대로 둡니다.",
+    });
+}
+
+for (const n of nodes.filter((x) => x.source === "rule-paths" && x.matchedFiles / files.length >= 0.5))
+{
+    suggestions.push({
+        id: `broad:${n.id}`, kind: "placement", severity: "low", confidence: "measured", targets: [n.id],
+        title: `${n.title} 규칙은 조건이 넓어 거의 늘 실립니다`,
+        evidence: `저장소 파일의 ${Math.round(n.matchedFiles / files.length * 100)}%(${n.matchedFiles.toLocaleString()}개)가 이 규칙의 경로에 맞습니다. 파일을 하나만 열어도 대개 실리므로 조건이 고르는 일을 거의 하지 않습니다.`,
+        action: "정말 모든 작업에 걸리는 글이면 짧게 줄여 루트에 두고, 아니면 경로를 그 규약이 실제로 걸리는 폴더나 파일 종류로 좁힙니다.",
+    });
+}
+for (const n of nodes.filter((x) => x.source === "rule-always"))
+{
+    suggestions.push({
+        id: `always-rule:${n.id}`, kind: "placement", severity: n.chars >= 2000 ? "medium" : "low", confidence: "needs-test", targets: [n.id],
+        title: `${n.title} 규칙은 경로 조건이 없어 늘 실립니다`,
+        evidence: `${n.chars.toLocaleString()}자가 루트 CLAUDE.md 와 같은 값으로 모든 세션에 실립니다. 파일만 나뉘어 있을 뿐 실리는 때는 루트와 같습니다.`,
+        action: "모든 작업에 걸리는 글인지 봅니다. 몇몇 파일에서만 걸리면 머리에 `paths` 를 적습니다.",
+        saves: n.chars,
+    });
+}
+
 const deadBySrc = new Map();
 for (const r of refs.filter((x) => x.state === "dead" && byId.get(x.from).kind !== "skill")) deadBySrc.set(r.from, [...(deadBySrc.get(r.from) ?? []), r.path]);
 for (const [from, list] of [...deadBySrc].sort((a, b) => b[1].length - a[1].length))
@@ -386,6 +501,9 @@ if (bare && bare.files / src.length > 0.1)
     });
 }
 
+const sumOf = (list) => ({ count: list.length, chars: list.reduce((a, n) => a + n.chars, 0) });
+const sources = Object.fromEntries(["root", "folder", "rule-always", "rule-paths"].map((k) => [k, sumOf(nodes.filter((n) => n.source === k))]));
+
 const order = { high: 0, medium: 1, low: 2 };
 suggestions.sort((a, b) => order[a.severity] - order[b.severity]);
 
@@ -395,7 +513,7 @@ catch { /* 깃이 없으면 비워 둡니다 */ }
 
 const map = {
     schema: 1,
-    meta: { repo: basename(root), commit, generatedAt: new Date().toISOString(), limits: LIMITS, files: files.length, sourceFiles: src.length, alwaysChars },
+    meta: { repo: basename(root), commit, generatedAt: new Date().toISOString(), limits: LIMITS, files: files.length, sourceFiles: src.length, alwaysChars, sources },
     nodes, edges, stacks, suggestions,
 };
 mkdirSync(dirname(out), { recursive: true });

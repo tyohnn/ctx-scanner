@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 
 import { Chars, LevelDot } from "@/components/bits";
 import { Input, Meter } from "@/components/ui";
-import { KIND_LABEL, n, type ContextMap, type MapNode } from "@/data";
+import { kindLabel, n, type ContextMap, type MapNode } from "@/data";
 import { cn } from "@/lib/utils";
 
 interface Props { map: ContextMap; selected: string | null; onSelect: (id: string | null) => void }
@@ -98,7 +98,7 @@ function StackRow({ node, picked, onSelect, limit, why }: { node: MapNode; picke
         <button type="button" onClick={() => onSelect(node.id)} className={cn("flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-muted", picked && "bg-muted")}>
             <LevelDot level={node.level} />
             <span className="min-w-0 flex-1">
-                <span className="block truncate">{node.title} <span className="text-[11px] text-muted-foreground">{KIND_LABEL[node.kind]}</span></span>
+                <span className="block truncate">{node.title} <span className="text-[11px] text-muted-foreground">{kindLabel(node)}</span></span>
                 {why && <span className="num block truncate text-[10.5px] text-muted-foreground">{why}</span>}
             </span>
             {limit && <Meter value={node.chars} max={limit} className="w-16" />}

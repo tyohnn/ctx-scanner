@@ -1,12 +1,14 @@
 // 보고서가 읽는 자료의 모양입니다. 스크립트(scan · lib-trace · run-scenario)가 이 모양으로 냅니다.
 export type Level = 1 | 2 | 3 | 4 | 5;
 export type Kind = "root" | "nested" | "rule" | "skill" | "agent" | "hook";
+// 지시문이 놓인 자리입니다. 폴더 지시문과 경로 규칙은 둘 다 조건이 맞을 때 실리지만 실리는 단위가 다릅니다(폴더 전체 · 경로 패턴).
+export type Source = "root" | "folder" | "rule-always" | "rule-paths";
 
 export interface MapNode
 {
-    id: string; kind: Kind; path: string; title: string; chars: number; lines: number; level: Level;
+    id: string; kind: Kind; source?: Source; path: string; title: string; chars: number; lines: number; level: Level;
     name?: string; description?: string; listingChars?: number; dir?: string; event?: string; matcher?: string | null;
-    sections?: { title: string; chars: number; lines: number }[];
+    sections?: { title: string; chars: number; lines: number; narrow?: { dir: string; files: number; share: number; paths: number } }[];
     globs?: { glob: string; re: string; files: number }[];
     when: { how: string; text: string; globs?: string[] }[];
     matchedFiles?: number; namedBy?: string[]; extraFiles?: number;
@@ -21,20 +23,20 @@ export interface Suggestion
 }
 export interface ContextMap
 {
-    meta: { repo: string; commit: string; generatedAt: string; limits: { onDemand200k: number; onDemand1m: number; skillListing: number }; files: number; sourceFiles: number; alwaysChars: number };
+    meta: { repo: string; commit: string; generatedAt: string; limits: { onDemand200k: number; onDemand1m: number; skillListing: number }; files: number; sourceFiles: number; alwaysChars: number; sources?: Partial<Record<Source, { count: number; chars: number }>> };
     nodes: MapNode[]; edges: MapEdge[]; stacks: Stack[]; suggestions: Suggestion[];
 }
 export type RowKind = "session" | "prompt" | "instruction" | "skill" | "tool" | "subagent" | "compact" | "stop";
 export interface TraceRow
 {
     i: number; at: number; dur: number; kind: RowKind; name: string; target?: string | null; reason?: string | null; trigger?: string | null;
-    chars?: number; nodeId?: string | null; agent?: { id: string; type: string | null } | null; reads?: string[] | null; open?: boolean;
+    chars?: number; nodeId?: string | null; source?: Source | null; agent?: { id: string; type: string | null } | null; reads?: string[] | null; open?: boolean;
 }
 export interface Trace
 {
     session: string; startedAt: string; model: string | null; prompt: { chars: number; preview: string | null } | null; duration: number;
     rows: TraceRow[]; findings: Suggestion[];
-    totals: { instructions: number; instructionChars: number; skills: string[]; tools: number; subagents: number; toolChars: number };
+    totals: { instructions: number; instructionChars: number; skills: string[]; tools: number; subagents: number; toolChars: number; bySource?: Record<string, { count: number; chars: number }> };
 }
 export interface ScenarioRun { session: string; variant: number; prompt: string; pass: boolean; hit: string[]; missed: string[]; firstLoadAt: number | null; duration: number }
 export interface Scenario
@@ -59,6 +61,8 @@ export const LEVELS: Record<Level, { label: string; short: string; who: string; 
     5: { label: "모델이 고름", short: "자유", who: "모델이 설명만 보고 정합니다", color: "var(--lv5)" },
 };
 export const KIND_LABEL: Record<Kind, string> = { root: "루트 지시문", nested: "폴더 지시문", rule: "경로 규칙", skill: "스킬", agent: "서브에이전트", hook: "훅" };
+export const SOURCE_LABEL: Record<Source, string> = { root: "루트 지시문", folder: "폴더 지시문", "rule-always": "늘 실리는 규칙", "rule-paths": "경로 규칙" };
+export const kindLabel = (node: Pick<MapNode, "kind" | "source">) => node.source ? SOURCE_LABEL[node.source] : KIND_LABEL[node.kind];
 export const REASON_LABEL: Record<string, string> = {
     session_start: "세션 시작", nested_traversal: "폴더 진입", path_glob_match: "경로 일치", include: "@가져오기", compact: "압축 뒤 복원",
     skill_invoke: "모델이 부름", agent_spawn: "모델이 띄움", startup: "새 세션", resume: "이어 하기",

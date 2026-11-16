@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 
 import { SEVERITY } from "@/components/bits";
 import { Input, Segmented } from "@/components/ui";
-import { REASON_LABEL, ROW_COLOR, ROW_LABEL, n, secs, shortPath, type RowKind, type Trace, type TraceRow } from "@/data";
+import { REASON_LABEL, ROW_COLOR, ROW_LABEL, SOURCE_LABEL, n, secs, shortPath, type RowKind, type Trace, type TraceRow } from "@/data";
 import { cn } from "@/lib/utils";
 
 const FILTERS: { key: string; label: string; kinds: RowKind[] | null }[] = [
@@ -197,7 +197,7 @@ export function TimelineView({ trace, selected, onSelect }: Props)
                                 <span className={cn("truncate", r.kind !== "prompt" && r.kind !== "session" && r.kind !== "stop" && "num", loaded && "font-medium")}>{rowName(r)}</span>
                                 {item.children && <span className="num shrink-0 text-[11px] text-muted-foreground">{item.children.length}</span>}
                             </WaterfallRowHeader>
-                            <WaterfallCell className={"text-muted-foreground"}>{ROW_LABEL[r.kind]}</WaterfallCell>
+                            <WaterfallCell className={"truncate text-muted-foreground"}>{r.kind === "instruction" && r.source ? SOURCE_LABEL[r.source] : ROW_LABEL[r.kind]}</WaterfallCell>
                             <WaterfallCell className={"truncate text-muted-foreground"}>{r.reason ? REASON_LABEL[r.reason] ?? r.reason : ""}</WaterfallCell>
                             <WaterfallCell className={"num truncate text-[11px] text-muted-foreground"} title={r.trigger ?? r.reads?.join(", ") ?? ""}>
                                 {r.trigger ? shortPath(r.trigger, 2) : r.reads ? shortPath(r.reads[0], 2) + (r.reads.length > 1 ? ` 외 ${r.reads.length - 1}` : "") : ""}
@@ -221,7 +221,11 @@ export function TimelineView({ trace, selected, onSelect }: Props)
 
             <div className="flex items-center gap-4 border-t bg-secondary px-3 py-1.5 text-[11px] text-muted-foreground">
                 <span>사건 <span className="num text-foreground">{rows.length}</span> / {trace.rows.length}</span>
-                <span>실린 지시문 <span className="num text-foreground">{trace.totals.instructions}</span>개 · <span className="num text-foreground">{n(trace.totals.instructionChars)}</span>자</span>
+                {trace.totals.bySource
+                    ? (["root", "folder", "rule-always", "rule-paths"] as const).filter((k) => trace.totals.bySource![k]).map((k) => (
+                        <span key={k}>{SOURCE_LABEL[k]} <span className="num text-foreground">{trace.totals.bySource![k].count}</span>개 · <span className="num text-foreground">{n(trace.totals.bySource![k].chars)}</span>자</span>
+                    ))
+                    : <span>실린 지시문 <span className="num text-foreground">{trace.totals.instructions}</span>개 · <span className="num text-foreground">{n(trace.totals.instructionChars)}</span>자</span>}
                 <span>부른 스킬 <span className="text-foreground">{trace.totals.skills.length ? trace.totals.skills.join(", ") : "없음"}</span></span>
                 <span>도구 <span className="num text-foreground">{trace.totals.tools}</span>번</span>
                 <span>걸린 시간 <span className="num text-foreground">{secs(trace.duration)}</span></span>

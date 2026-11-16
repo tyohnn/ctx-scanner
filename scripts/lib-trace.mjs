@@ -1,6 +1,8 @@
 // 수집기가 적은 줄을 화면이 그리는 모양으로 고칩니다. 지도를 받으면 사건을 지도의 노드에 잇습니다.
 import { readFileSync } from "node:fs";
 
+// 지도에 없는 지시문(저장소 밖의 사용자 지시문 등)은 실린 까닭으로 출처를 짐작합니다.
+const SOURCE_BY_REASON = { nested_traversal: "folder", path_glob_match: "rule-paths" };
 const READ_COMMANDS = new Set(["cat", "head", "tail", "sed", "grep", "rg", "less", "awk", "find", "ls", "wc"]);
 
 export function readTrace(file, map)
@@ -31,7 +33,7 @@ export function readTrace(file, map)
         }
         else if (r.ev === "InstructionsLoaded")
         {
-            out.push({ at, dur: 0, kind: "instruction", name: r.path, reason: r.reason, trigger: r.trigger ?? null, parent: r.parent ?? null, chars: r.chars ?? 0, nodeId: nodes.has(r.path) ? r.path : null, agent });
+            out.push({ at, dur: 0, kind: "instruction", name: r.path, reason: r.reason, trigger: r.trigger ?? null, parent: r.parent ?? null, chars: r.chars ?? 0, nodeId: nodes.has(r.path) ? r.path : null, source: nodes.get(r.path)?.source ?? SOURCE_BY_REASON[r.reason] ?? null, agent });
         }
         else if (r.ev === "PreToolUse")
         {
@@ -96,10 +98,40 @@ export function readTrace(file, map)
         });
     }
 
+    // 폴더 지시문은 통째로 실립니다. 좁은 절(폴더의 한 구석만 다루는 절) 가운데 이 세션이 그 구석을 열지 않은 것을 셉니다.
+    const opened = [...new Set(out.flatMap((r) => [r.trigger, ["Read", "Edit", "Write"].includes(r.name) ? r.target : null, ...(r.reads ?? [])]).filter(Boolean))];
+    const idle = [];
+    for (const r of onDemand.filter((x) => x.source === "folder" && x.nodeId))
+    {
+        for (const s of nodes.get(r.nodeId).sections ?? [])
+        {
+            if (s.narrow && !opened.some((p) => p.includes(s.narrow.dir + "/"))) idle.push({ row: r.i, node: nodes.get(r.nodeId).title, title: s.title, chars: s.chars, dir: s.narrow.dir });
+        }
+    }
+    const idleChars = idle.reduce((a, s) => a + s.chars, 0);
+    if (idleChars >= 2000)
+    {
+        idle.sort((a, b) => b.chars - a.chars);
+        findings.push({
+            id: "idle-sections", severity: idleChars >= 8000 ? "medium" : "low",
+            title: `폴더 지시문에서 이 세션이 열지 않은 곳의 절 ${idleChars.toLocaleString()}자가 함께 실렸습니다`,
+            evidence: `${idle.slice(0, 4).map((s) => `${s.node} 「${s.title}」 ${s.chars.toLocaleString()}자(\`${s.dir}/\`)`).join(", ")}${idle.length > 4 ? ` 외 ${idle.length - 4}개` : ""}. 폴더 지시문은 그 폴더의 어느 파일을 열어도 전부 실리기 때문입니다. 경로 규칙이었다면 실리지 않았을 글입니다.`,
+            action: "이 절들을 그 경로의 규칙으로 옮기면 그곳의 파일을 열 때만 실립니다.",
+            rows: [...new Set(idle.map((s) => s.row))],
+        });
+    }
+
+    const bySource = {};
+    for (const r of instr)
+    {
+        const k = r.source ?? "other";
+        bySource[k] = { count: (bySource[k]?.count ?? 0) + 1, chars: (bySource[k]?.chars ?? 0) + r.chars };
+    }
+
     return {
         session: rows[0].session, startedAt: new Date(t0).toISOString(), model, prompt, duration, rows: out, findings,
         totals: {
-            instructions: instr.length, instructionChars: instr.reduce((a, r) => a + r.chars, 0),
+            instructions: instr.length, instructionChars: instr.reduce((a, r) => a + r.chars, 0), bySource,
             skills: out.filter((r) => r.kind === "skill").map((r) => r.name),
             tools: out.filter((r) => r.kind === "tool").length, subagents: out.filter((r) => r.kind === "subagent").length,
             toolChars: out.filter((r) => r.kind === "tool").reduce((a, r) => a + r.chars, 0),

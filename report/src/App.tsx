@@ -49,6 +49,7 @@ export function App()
     const trace = traces.length ? traces[traceIndex >= 0 && traceIndex < traces.length ? traceIndex : traces.length - 1] : null;
     const node = map.nodes.find((x) => x.id === selected) ?? null;
     const count = (kind: string) => map.nodes.filter((x) => x.kind === kind).length;
+    const alwaysRules = map.nodes.filter((x) => x.source === "rule-always").length;
     const tabs: { key: Tab; label: string; badge?: string | number; show: boolean }[] = [
         { key: "map", label: "지도", show: true },
         { key: "timeline", label: "기록", badge: traces.length || undefined, show: traces.length > 0 },
@@ -76,7 +77,8 @@ export function App()
                     <div className="ml-auto flex items-center gap-4 text-[11px] text-muted-foreground">
                         <span>늘 실리는 글 <Chars value={map.meta.alwaysChars} className="text-foreground" /></span>
                         <span>폴더 지시문 <span className="num text-foreground">{count("nested")}</span></span>
-                        <span>경로 규칙 <span className="num text-foreground">{count("rule")}</span></span>
+                        <span>경로 규칙 <span className="num text-foreground">{count("rule") - alwaysRules}</span></span>
+                        {alwaysRules > 0 && <span>늘 실리는 규칙 <span className="num text-foreground">{alwaysRules}</span></span>}
                         <span>스킬 <span className="num text-foreground">{count("skill")}</span></span>
                         <span>파일 <span className="num text-foreground">{n(map.meta.files)}</span></span>
                         {traces.length > 1 && (

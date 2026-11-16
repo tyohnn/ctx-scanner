@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { KIND_LABEL, LEVELS, n, type Level, type MapNode } from "@/data";
+import { LEVELS, kindLabel, n, type Level, type MapNode } from "@/data";
 import { cn } from "@/lib/utils";
 
 export function LevelDot({ level, className }: { level: Level; className?: string })
@@ -43,7 +43,7 @@ export function NodeLink({ node, onSelect, sub }: { node: MapNode; onSelect: (id
         <button type="button" onClick={() => onSelect(node.id)} className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left hover:bg-muted">
             <LevelDot level={node.level} />
             <span className="min-w-0 flex-1 truncate">{node.title}</span>
-            <span className="shrink-0 text-[11px] text-muted-foreground">{sub ?? KIND_LABEL[node.kind]}</span>
+            <span className="shrink-0 text-[11px] text-muted-foreground">{sub ?? kindLabel(node)}</span>
         </button>
     );
 }

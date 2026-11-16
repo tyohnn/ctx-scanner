@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 
-import { KIND_LABEL, LEVELS, REASON_LABEL, n, secs, type ContextMap, type MapNode, type Trace } from "@/data";
+import { LEVELS, kindLabel, REASON_LABEL, n, secs, type ContextMap, type MapNode, type Trace } from "@/data";
 
 import { Chars, CONFIDENCE, LevelBadge, NodeLink, Section, SEVERITY } from "./bits";
 import { Button, Meter } from "./ui";
@@ -38,12 +38,13 @@ export function Inspector({ map, trace, node, onSelect }: Props)
     const hits = trace?.rows.filter((r) => r.nodeId === node.id) ?? [];
     const related = map.suggestions.filter((s) => s.targets?.includes(node.id));
     const listed = node.kind === "skill" || node.kind === "agent";
+    const narrow = (node.sections ?? []).filter((s) => s.narrow);
 
     return (
         <aside className="flex w-[360px] shrink-0 flex-col overflow-hidden border-l bg-sidebar">
             <div className="flex items-start gap-2 border-b px-4 py-3">
                 <div className="min-w-0 flex-1">
-                    <div className="text-[11px] text-muted-foreground">{KIND_LABEL[node.kind]}</div>
+                    <div className="text-[11px] text-muted-foreground">{kindLabel(node)}</div>
                     <div className="truncate text-sm font-semibold">{node.title}</div>
                     <div className="num mt-0.5 break-all text-[11px] text-muted-foreground">{node.path}</div>
                 </div>
@@ -74,6 +75,21 @@ export function Inspector({ map, trace, node, onSelect }: Props)
                     )}
                 </Section>
 
+                {(node.source === "folder" || node.kind === "rule") && (
+                    <Section title="실리는 단위" hint={node.source === "folder" ? "폴더" : node.source === "rule-paths" ? "경로" : "세션"}>
+                        {node.source === "folder" && (
+                            <p className="leading-snug">
+                                폴더 단위입니다. 이 폴더의 파일 {n(node.matchedFiles)}개 가운데 어느 것을 열어도 {n(node.chars)}자가 전부 실립니다.
+                                {narrow.length > 0
+                                    ? <> 절 {narrow.length}개({n(narrow.reduce((a, s) => a + s.chars, 0))}자)는 폴더의 한 곳만 다루므로, 경로 규칙으로 옮기면 그곳을 열 때만 실립니다.</>
+                                    : <> 폴더 전체에 걸리는 글이면 여기가 맞는 자리입니다.</>}
+                            </p>
+                        )}
+                        {node.source === "rule-paths" && <p className="leading-snug">경로 단위입니다. 폴더가 아니라 파일의 경로에 맞춰 실리므로 파일 종류나 여러 폴더에 걸친 규약을 한 곳에 둘 수 있습니다. 한 파일에 여러 규칙이 겹치면 모두 실립니다.</p>}
+                        {node.source === "rule-always" && <p className="leading-snug">경로 조건이 없어서 실리는 때가 루트 CLAUDE.md 와 같습니다. 파일만 나뉘어 있습니다.</p>}
+                    </Section>
+                )}
+
                 <Section title="크기">
                     {listed && (
                         <div className="mb-2">
@@ -99,6 +115,7 @@ export function Inspector({ map, trace, node, onSelect }: Props)
                             {node.sections.map((s, i) => (
                                 <div key={`${s.title}${i}`}>
                                     <div className="flex justify-between gap-2"><span className="truncate">{s.title.replaceAll("`", "")}</span><Chars value={s.chars} className="shrink-0 text-[11px]" /></div>
+                                    {s.narrow && <div className="num truncate text-[10.5px] text-muted-foreground" title={`이 절이 가리키는 경로 ${s.narrow.paths}곳이 모두 ${s.narrow.dir}/ 아래입니다`}>{s.narrow.dir.slice((node.dir ?? "").length)}/ 에서만 · 폴더의 {Math.round(s.narrow.share * 100)}%</div>}
                                     <div className="h-1 rounded-full bg-muted"><div className="h-full rounded-full bg-ring" style={{ width: `${s.chars / node.chars * 100}%` }} /></div>
                                 </div>
                             ))}
