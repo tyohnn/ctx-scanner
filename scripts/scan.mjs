@@ -14,7 +14,25 @@ const out = resolve(arg("out", join(dataDir(root), "map.json")));
 const LIMITS = { onDemand200k: 40000, onDemand1m: 150000, skillListing: 1536 };
 
 const git = (...a) => execFileSync("git", ["-C", root, "-c", "core.quotepath=off", ...a], { maxBuffer: 1 << 30 }).toString();
-const files = git("ls-files").split("\n").filter(Boolean);
+const globToRe = (g) => "^" + g
+    .replace(/[.+^$()|]/g, "\\$&")
+    .replace(/\{([^}]+)\}/g, (_, a) => "(" + a.split(",").join("|") + ")")
+    .replace(/\*\*\//g, "\u0001")
+    .replace(/\*\*/g, "\u0002")
+    .replace(/\*/g, "[^/]*")
+    .replace(/\u0001/g, "(.*/)?")
+    .replace(/\u0002/g, ".*") + "$";
+
+let config = {};
+for (const c of [arg("config", ""), ".claude/ctxscope.json"].filter(Boolean))
+{
+    try { config = JSON.parse(readFileSync(resolve(root, c), "utf8")); break; }
+    catch { /* 설정이 없으면 기본 영역을 씁니다 */ }
+}
+// 프로젝트 파일로 세지 않을 경로입니다(`exclude`). 예제 폴더 안의 원본 사본처럼 이 저장소의 지시문이 아닌 것을 아예 뺍니다.
+// `ignore` 는 파일로는 세되 플로우와 빈칸 검사에서만 뺍니다.
+const excludeRes = (config.exclude ?? []).map((g) => new RegExp(globToRe(g)));
+const files = git("ls-files").split("\n").filter(Boolean).filter((f) => !excludeRes.some((r) => r.test(f)));
 const fileSet = new Set(files);
 const dirs = new Set();
 for (const f of files)
@@ -52,14 +70,6 @@ const frontmatter = (t) =>
     return { fm, body: t.slice(m[0].length) };
 };
 
-const globToRe = (g) => "^" + g
-    .replace(/[.+^$()|]/g, "\\$&")
-    .replace(/\{([^}]+)\}/g, (_, a) => "(" + a.split(",").join("|") + ")")
-    .replace(/\*\*\//g, "\u0001")
-    .replace(/\*\*/g, "\u0002")
-    .replace(/\*/g, "[^/]*")
-    .replace(/\u0001/g, "(.*/)?")
-    .replace(/\u0002/g, ".*") + "$";
 
 const sections = (t) =>
 {
@@ -403,12 +413,6 @@ const DEFAULT_AREAS = [
     { id: "package", label: "패키지 코드", paths: ["packages/*/src/**"] },
     { id: "app", label: "앱의 그 밖의 코드", paths: ["apps/*/src/**"] },
 ];
-let config = {};
-for (const c of [arg("config", ""), ".claude/ctxscope.json"].filter(Boolean))
-{
-    try { config = JSON.parse(readFileSync(resolve(root, c), "utf8")); break; }
-    catch { /* 설정이 없으면 기본 영역을 씁니다 */ }
-}
 // 플로우와 빈칸 검사에서 뺄 경로입니다. 저장소 맨 위의 점으로 시작하는 폴더(.design-sync 같은 받아 둔 자료)는 기본으로 빼고,
 // 원본을 그대로 옮겨 둔 패키지처럼 일부러 규약을 걸지 않는 곳은 `.claude/ctxscope.json` 의 `ignore` 에 적습니다.
 const ignoreRes = [".*/**", ...(config.ignore ?? [])].map((g) => new RegExp(globToRe(g)));

@@ -163,7 +163,8 @@ paths:
 몰린 규칙(도메인 패키지 규약)은 그 위치의 모든 영역에서 계층 칸에 들어갑니다.
 
 원본을 그대로 옮겨 둔 패키지처럼 일부러 규약을 걸지 않는 곳은 `ignore` 에 적어 플로우와 빈칸 검사에서 뺍니다. 저장소 맨 위의 점으로
-시작하는 폴더는 기본으로 뺍니다.
+시작하는 폴더는 기본으로 뺍니다. 예제 폴더 안의 원본 사본처럼 이 저장소의 지시문이 아닌 것은 `exclude` 에 적습니다. `exclude` 에
+적은 경로는 파일 수 · 맵 · 제안 어디에도 들어가지 않습니다.
 
 ```json
 {
@@ -171,7 +172,8 @@ paths:
         { "id": "api", "paths": ["apps/*/src/app/api/**/route.ts"] },
         { "id": "domain", "label": "도메인 패키지", "paths": ["packages/{sales,legal,access}/src/**"] }
     ],
-    "ignore": ["packages/vella-ui/**"]
+    "ignore": ["packages/vendor-ui/**"],
+    "exclude": ["examples/**/expected/**"]
 }
 ```
 
