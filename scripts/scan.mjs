@@ -24,7 +24,7 @@ const globToRe = (g) => "^" + g
     .replace(/\u0002/g, ".*") + "$";
 
 let config = {};
-for (const c of [arg("config", ""), ".claude/ctxscope.json"].filter(Boolean))
+for (const c of [arg("config", ""), ".claude/context-scanner.json", ".claude/ctxscope.json"].filter(Boolean))
 {
     try { config = JSON.parse(readFileSync(resolve(root, c), "utf8")); break; }
     catch { /* 설정이 없으면 기본 영역을 씁니다 */ }
@@ -396,7 +396,7 @@ const stacks = [...stackMap.values()].sort((a, b) => b.files - a.files).map((s) 
 // ── 플로우: 영역 × 위치마다 무엇이 로드되나 ───────────────────────────────────────────
 // 파일 하나를 건드리면 세 축에서 로드가 일어납니다. 폴더(어느 앱 · 기능 폴더 아래인가), 계층(어느 계층 · 파일 종류인가),
 // 도메인(어느 도메인의 코드인가). 그 뒤에는 로드된 지시문이 가리키는 스킬과 문서가 필요할 때만 읽힙니다.
-// 영역은 위에서부터 처음 맞는 것으로 정합니다. 저장소가 `.claude/ctxscope.json` 의 `areas` 로 바꿀 수 있습니다.
+// 영역은 위에서부터 처음 맞는 것으로 정합니다. 저장소가 `.claude/context-scanner.json` 의 `areas` 로 바꿀 수 있습니다.
 const DEFAULT_AREAS = [
     { id: "test", label: "테스트", order: 91, paths: ["**/*.{test,spec}.{ts,tsx,js,jsx,mjs}", "**/{e2e,__tests__,tests}/**"] },
     { id: "database", label: "DB · 마이그레이션", order: 90, paths: ["**/migrations/**", "**/*.sql"] },
@@ -414,7 +414,7 @@ const DEFAULT_AREAS = [
     { id: "app", label: "앱의 그 밖의 코드", paths: ["apps/*/src/**"] },
 ];
 // 플로우와 빈칸 검사에서 뺄 경로입니다. 저장소 맨 위의 점으로 시작하는 폴더(.design-sync 같은 받아 둔 자료)는 기본으로 빼고,
-// 원본을 그대로 옮겨 둔 패키지처럼 일부러 규약을 걸지 않는 곳은 `.claude/ctxscope.json` 의 `ignore` 에 적습니다.
+// 원본을 그대로 옮겨 둔 패키지처럼 일부러 규약을 걸지 않는 곳은 `.claude/context-scanner.json` 의 `ignore` 에 적습니다.
 const ignoreRes = [".*/**", ...(config.ignore ?? [])].map((g) => new RegExp(globToRe(g)));
 const ignored = (f) => ignoreRes.some((r) => r.test(f));
 // `areas` 는 기본 영역에 덧씌웁니다. id 가 같으면 그 영역의 label · paths 만 바꾸고, 새 id 는 「패키지 코드」 앞에 끼웁니다.

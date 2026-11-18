@@ -58,7 +58,7 @@ try
     {
         const p = String(input.prompt ?? "");
         row.chars = [...p].length;
-        if (process.env.CTXSCOPE_PROMPT_PREVIEW === "1") row.preview = [...p].slice(0, 120).join("");
+        if (process.env.CONTEXT_SCANNER_PROMPT_PREVIEW === "1") row.preview = [...p].slice(0, 120).join("");
     }
     else if (ev === "SessionStart")
     {

@@ -6,7 +6,7 @@ interface Props { circuit: Circuit; alwaysChars: number; onSelect: (id: string |
 // 칸 하나(영역 × 위치)의 연결 목록을 회로도 기호로 그립니다. 기호는 이렇습니다.
 // 맨 위 전원선(VCC)은 항상 로드되는 내용, 실선은 경로로 자동 로드되는 지시문, 굵은 점선은 규칙의 「엽니다」 지시, 가는 점선은 CLAUDE.md 색인의 안내,
 // OPEN 은 있어야 할 지시문이 없는 자리, SHORT 는 같은 내용이 다른 곳에도 있는 자리입니다. 점이 없는 교차는 이어지지 않은 것입니다.
-// 오른쪽의 검사 라인은 ctxscope 가 아직 재지 않으므로 점선 상자로만 둡니다.
+// 오른쪽의 검사 라인은 context-scanner 가 아직 재지 않으므로 점선 상자로만 둡니다.
 export function CircuitDiagram({ circuit, alwaysChars, onSelect }: Props)
 {
     const { flow, gates, skills, next, pointers } = circuit;
@@ -135,7 +135,7 @@ export function CircuitDiagram({ circuit, alwaysChars, onSelect }: Props)
                     <rect x={990} y={oy - 112} width={190} height={58} rx={6} className="b-todo" />
                     <text x={1002} y={oy - 92} className="t-small">검사 라인</text>
                     <text x={1002} y={oy - 74} className="t-main sm">typecheck → test → pr:check</text>
-                    <text x={1002} y={oy - 60} className="t-sub">ctxscope 는 아직 재지 않음</text>
+                    <text x={1002} y={oy - 60} className="t-sub">context-scanner 는 아직 재지 않음</text>
                 </svg>
             </div>
             <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-[11px] text-muted-foreground">

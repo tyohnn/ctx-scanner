@@ -25,12 +25,12 @@ const sh = (cmd, args, opts) => new Promise((done) => execFile(cmd, args, { maxB
 // 세션마다 작업 폴더를 따로 떼어 줍니다. 한 세션이 고친 파일이 다음 세션의 출발점을 바꾸면 안 됩니다.
 async function runOnce(prompt)
 {
-    const dir = mkdtempSync(join(tmpdir(), "ctxscope-"));
+    const dir = mkdtempSync(join(tmpdir(), "context-scanner-"));
     execFileSync("git", ["-C", root, "worktree", "add", "--detach", "--force", dir, "HEAD"], { stdio: "ignore" });
     try
     {
         const { stdout } = await sh("claude", ["-p", prompt, "--plugin-dir", plugin, "--permission-mode", "acceptEdits", "--max-turns", maxTurns, "--output-format", "json"], {
-            cwd: dir, timeout: 600000, env: { ...process.env, CTXSCOPE_DIR: data, CTXSCOPE_PROMPT_PREVIEW: "1" },
+            cwd: dir, timeout: 600000, env: { ...process.env, CONTEXT_SCANNER_DIR: data, CONTEXT_SCANNER_PROMPT_PREVIEW: "1" },
         });
         try { return JSON.parse(stdout).session_id ?? null; }
         catch { return null; }

@@ -91,7 +91,7 @@ description: 맵 · 기록 · 시나리오 결과를 읽고 지시문을 어떻�
 - `confidence` 를 속이지 않습니다. 내용만 읽고 내린 판단은 `heuristic` 입니다.
 - 스크립트의 제안을 평가했으면 `verdict` 에 적습니다. `accept`(받아들임) · `modify`(고쳐서 받아들임, `action` 을 고친 대로 씁니다) · `keep`(그대로 둠, 일부러 다르게 둔 곳) · `false-positive`(거짓 신호, 스크립트가 잘못 잰 것) 가운데 하나입니다. 보고서가 배지로 보여 주고 `keep` · `false-positive` 는 아래로 내립니다. 제목을 바꿔 판정을 표시하지 않습니다.
 - `saves` 는 줄어드는 글자 수입니다. 항상 로드되는 내용에서 줄면 `savesScope: "always"`, 파일을 열 때 로드되는 내용에서 줄면 `"conditional"` 로 적습니다. 적지 않으면 `kind` 로 짐작합니다.
-- `false-positive` 가 나오면 원인(어느 판별이 틀렸는지)을 `evidence` 에 적습니다. 원본을 옮겨 둔 패키지처럼 일부러 규약을 걸지 않는 곳이 `gap:` · `no-glossary` 에 반복해 나오면 `.claude/ctxscope.json` 의 `ignore` 에 그 경로를 더하자고 제안합니다.
+- `false-positive` 가 나오면 원인(어느 판별이 틀렸는지)을 `evidence` 에 적습니다. 원본을 옮겨 둔 패키지처럼 일부러 규약을 걸지 않는 곳이 `gap:` · `no-glossary` 에 반복해 나오면 `.claude/context-scanner.json` 의 `ignore` 에 그 경로를 더하자고 제안합니다.
 
 ### 쓰는 법
 

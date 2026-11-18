@@ -1,5 +1,5 @@
 {
-    "name": "ctxscope-report",
+    "name": "context-scanner-report",
     "private": true,
     "version": "0.1.0",
     "type": "module",

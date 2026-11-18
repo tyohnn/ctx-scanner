@@ -72,7 +72,7 @@ export interface Report { title: string | null; map: ContextMap; traces: Trace[]
 
 export function loadReport(): Report | null
 {
-    const el = document.getElementById("ctxscope-data");
+    const el = document.getElementById("context-scanner-data");
     try { return JSON.parse(el?.textContent ?? "null"); }
     catch { return null; }
 }

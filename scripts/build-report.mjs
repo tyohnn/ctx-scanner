@@ -13,7 +13,7 @@ const root = resolve(arg("root", process.cwd()));
 const data = resolve(arg("data", dataDir(root)));
 const here = dirname(fileURLToPath(import.meta.url));
 const template = readFileSync(join(here, "..", "templates", "report.html"), "utf8");
-const SLOT = /(<script id="ctxscope-data" type="application\/json">)[\s\S]*?(<\/script>)/;
+const SLOT = /(<script id="context-scanner-data" type="application\/json">)[\s\S]*?(<\/script>)/;
 if (!SLOT.test(template)) throw new Error("보고서 템플릿에 자료 칸이 없습니다");
 
 const json = (name) => existsSync(join(data, name)) ? JSON.parse(readFileSync(join(data, name), "utf8")) : null;

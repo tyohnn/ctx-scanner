@@ -62,7 +62,7 @@ export function App()
 
     if (!report)
     {
-        return <div className="grid h-full place-items-center text-muted-foreground">이 문서에는 아직 자료가 없습니다. ctxscope 스킬이 맵을 만들어 채웁니다.</div>;
+        return <div className="grid h-full place-items-center text-muted-foreground">이 문서에는 아직 자료가 없습니다. context-scanner 스킬이 맵을 만들어 채웁니다.</div>;
     }
 
     const { map, traces, tests } = report;
@@ -79,14 +79,14 @@ export function App()
         { key: "timeline", label: "타임라인", badge: traces.length || undefined, show: true },
         { key: "tests", label: "시나리오", badge: tests?.scenarios.length, show: true },
     ];
-    document.title = `ctxscope · ${report.title ?? map.meta.repo}`;
+    document.title = `context-scanner · ${report.title ?? map.meta.repo}`;
 
     return (
         <ReactFlowProvider>
             <Tabs value={tab} onValueChange={(v) => { if (v) setTab(v as Tab); }} className="h-full gap-0">
                 <header className="flex h-(--tabs-line-height) shrink-0 items-center gap-4 border-b bg-sidebar px-4">
                     <div className="flex items-baseline gap-2">
-                        <span className="num text-sm font-semibold tracking-tight">ctxscope</span>
+                        <span className="num text-sm font-semibold tracking-tight">context-scanner</span>
                         <span className="text-xs text-muted-foreground">{report.title ?? map.meta.repo}{map.meta.commit && <span className="num"> @ {map.meta.commit}</span>}</span>
                     </div>
                     <TabsList aria-label="보고서 화면" className="gap-4 border-b-0">

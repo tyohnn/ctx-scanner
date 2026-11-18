@@ -26,7 +26,7 @@ paths:
 | 여러 단계의 절차 | — | 스킬 |
 | 용어의 뜻 | — | `.claude/rules/glossary/<도메인>.md` |
 
-`ctxscope` 가 이 구분으로 문장을 셉니다. 상태 기술과 결정 경위가 30% 를 넘으면 `derivable:` 제안이 나옵니다.
+`context-scanner` 가 이 구분으로 문장을 셉니다. 상태 기술과 결정 경위가 30% 를 넘으면 `derivable:` 제안이 나옵니다.
 
 ## 층마다의 틀
 

@@ -16,7 +16,7 @@ description: 저장소의 지시문(CLAUDE.md · 경로 규칙 · 스킬 · 서�
    ```
 
    마지막 줄에 `map.json` 을 쓴 자리가 나옵니다. 그 폴더가 자료 폴더이고 `advice.json` 과 기록도 같은 곳에 둡니다
-   (`CTXSCOPE_DIR` 를 주면 그곳, 아니면 플러그인의 자료 폴더 아래 저장소마다 한 칸입니다).
+   (`CONTEXT_SCANNER_DIR` 를 주면 그곳, 아니면 플러그인의 자료 폴더 아래 저장소마다 한 칸입니다).
 2. 보고서를 조립합니다. 절차는 `report` 스킬에 있습니다.
 3. 사용자에게 무엇을 말할지는 `report` 스킬의 「건넬 때」를 따릅니다. 이어서 `advise` 를 돌리면 여기서는 말하지 않고 `advise` 가 끝난 뒤 한 번만 말합니다.
 
@@ -66,7 +66,7 @@ description: 저장소의 지시문(CLAUDE.md · 경로 규칙 · 스킬 · 서�
 | ② 도메인 | 용어 표를 가진 경로 규칙(`role: domain`). `rules/glossary/` 아래에 있거나 `용어` 로 시작하는 표가 있으면 여기로 본다 |
 | ③ 필요할 때만 | 위의 지시문이 가리키는 스킬과, 그 스킬이 다시 가리키는 스킬 |
 
-같은 영역의 다른 위치에는 규칙이 있는데 그 위치에만 없으면 「빈칸」으로 표시합니다. 영역은 경로 패턴이고 저장소의 `.claude/ctxscope.json` 으로 바꿉니다(`advise` 스킬의 `references/layout.md` 「영역 정하기」).
+같은 영역의 다른 위치에는 규칙이 있는데 그 위치에만 없으면 「빈칸」으로 표시합니다. 영역은 경로 패턴이고 저장소의 `.claude/context-scanner.json` 으로 바꿉니다(`advise` 스킬의 `references/layout.md` 「영역 정하기」).
 
 스킬이 목록에 무엇을 싣는지는 `.claude/settings.json` 의 `skillOverrides` 와 스킬 머리의 `disable-model-invocation` 을 읽어 계산합니다(`listing`). 목록에서 뺀 스킬은 항상 로드되는 내용에 세지 않습니다.
 

@@ -1,11 +1,11 @@
 ---
 name: report
-description: ctxscope 의 맵 · 기록 · 시나리오 · 제안을 HTML 보고서 한 장으로 조립한다. "컨텍스트 보고서 만들어 줘", "ctxscope 보고서", "보고서 다시 뽑아 줘" 가 트리거이고, map · trace · test · advise 스킬이 마지막 단계에서 이 스킬을 호출한다.
+description: context-scanner 의 맵 · 기록 · 시나리오 · 제안을 HTML 보고서 한 장으로 조립한다. "컨텍스트 보고서 만들어 줘", "context-scanner 보고서", "보고서 다시 뽑아 줘" 가 트리거이고, map · trace · test · advise 스킬이 마지막 단계에서 이 스킬을 호출한다.
 ---
 
 # 보고서 조립
 
-ctxscope 의 산출물은 모두 HTML 문서입니다. 화면은 템플릿(`templates/report.html`)에 이미 들어 있고, 이 스킬은 자료만 채웁니다. 화면을 새로 그리지 않습니다.
+context-scanner 의 산출물은 모두 HTML 문서입니다. 화면은 템플릿(`templates/report.html`)에 이미 들어 있고, 이 스킬은 자료만 채웁니다. 화면을 새로 그리지 않습니다.
 
 ## 차례
 
@@ -20,7 +20,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/build-report.mjs" --root . --out <보고서�
 
 ## 자료를 저장하는 위치
 
-자료는 저장소 밖에 둡니다. `CTXSCOPE_DIR` 를 주면 그곳이고, 아니면 플러그인의 자료 폴더 아래에 저장소마다 한 칸입니다. 스크립트가 모두 같은 규칙으로 찾으므로 손으로 경로를 맞출 일은 없습니다.
+자료는 저장소 밖에 둡니다. `CONTEXT_SCANNER_DIR` 를 주면 그곳이고, 아니면 플러그인의 자료 폴더 아래에 저장소마다 한 칸입니다. 스크립트가 모두 같은 규칙으로 찾으므로 손으로 경로를 맞출 일은 없습니다.
 
 ## 건넬 때
 
