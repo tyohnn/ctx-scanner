@@ -53,7 +53,10 @@ export function App()
         if (tab === "flow" && filter.scope) p.set("scope", filter.scope);
         // 밝은 화면이 기본입니다. 어두운 화면을 고른 때만 주소에 적습니다.
         if (dark) p.set("theme", "dark");
-        history.replaceState(null, "", `#${p}`);
+        // 미리보기 창처럼 샌드박스 iframe(about:srcdoc)에서 열면 replaceState 가 SecurityError 를 던집니다.
+        // 그 오류가 화면 전체를 비우지 않도록 주소에 적는 것만 포기합니다.
+        try { history.replaceState(null, "", `#${p}`); }
+        catch { /* 주소에 적지 못해도 화면은 그대로 씁니다. */ }
     }, [tab, selected, traceIndex, dark, filter]);
     // 같은 문서 안에서 주소의 # 만 바꿔도 그 화면으로 갑니다(링크로 탭을 건넬 때).
     useEffect(() =>
