@@ -45,7 +45,7 @@ report/                         템플릿의 소스(React · Tailwind · UI SDK 
 설치하지 않고 한 번만 써 보려면 저장소를 받아 폴더를 직접 넘깁니다.
 
 ```
-git clone git@github.com:tyohnn/ctx-scanner.git ~/context-scanner
+git clone https://github.com/tyohnn/ctx-scanner.git ~/ctx-scanner
 claude --plugin-dir ~/ctx-scanner
 ```
 
