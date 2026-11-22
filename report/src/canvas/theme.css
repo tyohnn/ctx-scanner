@@ -1,0 +1,154 @@
+/* ============================================================
+   보고서의 디자인 토큰 「캔버스」
+   ------------------------------------------------------------
+   밝은 바탕 위에 흰 카드를 배치하고 파란 연결선으로 잇는 컨셉입니다. graphite 의 토큰 이름은 그대로 두고
+   값만 덮어씁니다. graphite 파일은 원본 그대로 두므로, 컨셉을 바꿀 때는 이 파일만 고칩니다.
+   기본은 밝은 화면이고 `#theme=dark` 로 어두운 화면을 엽니다.
+   ============================================================ */
+
+:root {
+    --font-sans: "Inter", "Pretendard", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+    --radius: 0.75rem;
+
+    --background: #ffffff;
+    --foreground: #1b1b19;
+    --card: #ffffff;
+    --card-foreground: #1b1b19;
+    --popover: #ffffff;
+    --popover-foreground: #1b1b19;
+    --primary: #1d5fb8;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f1ee;
+    --secondary-foreground: #1b1b19;
+    --muted: #f1f1ee;
+    --muted-foreground: #6b6b65;
+    --accent: #f1f1ee;
+    --accent-foreground: #1b1b19;
+    --destructive: #b3261e;
+    --border: #e6e6e2;
+    --border-strong: #d3d3cd;
+    --input: #e3e3df;
+    --ring: #6fa7e6;
+
+    --sidebar: #ffffff;
+    --sidebar-foreground: #1b1b19;
+    --sidebar-primary: #1d5fb8;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f1f1ee;
+    --sidebar-accent-foreground: #1b1b19;
+    --sidebar-border: #e6e6e2;
+    --sidebar-ring: #6fa7e6;
+
+    --info: #1d5fb8;
+    --info-soft: #eaf2fd;
+    --success: #1f7a3a;
+    --success-soft: #ecf6ee;
+    --warning: #8a5300;
+    --warning-soft: #fcf2e3;
+
+    --tag-blue-bg: #eaf2fd;    --tag-blue-border: #cfe0f7;    --tag-blue-fg: #1d5fb8;
+    --tag-purple-bg: #f1ecfb;  --tag-purple-border: #ddd2f4;  --tag-purple-fg: #5b3fa8;
+    --tag-green-bg: #ecf6ee;   --tag-green-border: #cde6d4;   --tag-green-fg: #1f7a3a;
+    --tag-orange-bg: #fcf2e3;  --tag-orange-border: #f0d9b5;  --tag-orange-fg: #8a5300;
+    --tag-red-bg: #fcecea;     --tag-red-border: #f3cbc7;     --tag-red-fg: #b3261e;
+    --tag-yellow-bg: #fbf5dc;  --tag-yellow-border: #eedfa0;  --tag-yellow-fg: #7a6200;
+    --tag-gray-bg: #f1f1ef;    --tag-gray-border: #e3e3df;    --tag-gray-fg: #55554f;
+
+    /* 캔버스만의 슬롯입니다. 화면의 바탕, 점 무늬, 카드, 연결선이 이 값을 읽습니다. */
+    --canvas: #f4f4f2;
+    --canvas-board: #fbfbfa;
+    --canvas-dot: #dadad5;
+    --canvas-card: #ffffff;
+    --canvas-card-border: #e3e3df;
+    --canvas-card-shadow: 0 1px 2px rgb(20 20 19 / 0.04);
+    --canvas-card-radius: 14px;
+    --canvas-panel-radius: 16px;
+    --canvas-wire: #a9cbf2;
+    --canvas-wire-node: #6fa7e6;
+    --canvas-picked: #6fa7e6;
+    --canvas-picked-soft: #f5f9fe;
+
+    /* 지시문의 종류마다 색 하나입니다. 막대 · 점 · 아이콘이 같은 색을 읽습니다. */
+    --kind-root: #1d5fb8;
+    --kind-folder: #2f8f4e;
+    --kind-rule: #7a5ac8;
+    --kind-common: #8a8a84;
+    --kind-term: #b5651d;
+    --kind-skill: #b5651d;
+    --kind-agent: #1d5fb8;
+    --kind-hook: #55554f;
+    --bar-folder: #6fbf8a;
+    --bar-layer: #9c86da;
+    --bar-common: #c9c9c3;
+    --bar-term: #e8b26a;
+}
+
+.dark {
+    --background: #1c1c1a;
+    --foreground: #ededea;
+    --card: #1f1f1d;
+    --card-foreground: #ededea;
+    --popover: #1f1f1d;
+    --popover-foreground: #ededea;
+    --primary: #8db8ef;
+    --primary-foreground: #10233d;
+    --secondary: #282826;
+    --secondary-foreground: #ededea;
+    --muted: #282826;
+    --muted-foreground: #a3a39c;
+    --accent: #2d2d2a;
+    --accent-foreground: #ededea;
+    --destructive: #f2867e;
+    --border: #33332f;
+    --border-strong: #45453f;
+    --input: #3a3a36;
+    --ring: #5f8fc8;
+
+    --sidebar: #1c1c1a;
+    --sidebar-foreground: #ededea;
+    --sidebar-border: #33332f;
+    --sidebar-accent: #282826;
+
+    --info: #8db8ef;     --info-soft: #1d2a3b;
+    --success: #7fcf95;  --success-soft: #1b2e21;
+    --warning: #e9b66c;  --warning-soft: #33281a;
+
+    --tag-blue-bg: #1d2a3b;    --tag-blue-border: #2c4565;    --tag-blue-fg: #8db8ef;
+    --tag-purple-bg: #29223a;  --tag-purple-border: #41365e;  --tag-purple-fg: #bba7ef;
+    --tag-green-bg: #1b2e21;   --tag-green-border: #2b4a34;   --tag-green-fg: #7fcf95;
+    --tag-orange-bg: #33281a;  --tag-orange-border: #574126;  --tag-orange-fg: #e9b66c;
+    --tag-red-bg: #3a201e;     --tag-red-border: #5e312d;     --tag-red-fg: #f2867e;
+    --tag-yellow-bg: #312c18;  --tag-yellow-border: #524824;  --tag-yellow-fg: #e3cf7a;
+    --tag-gray-bg: #282826;    --tag-gray-border: #3a3a36;    --tag-gray-fg: #b8b8b1;
+
+    --canvas: #141413;
+    --canvas-board: #191918;
+    --canvas-dot: #2e2e2b;
+    --canvas-card: #1f1f1d;
+    --canvas-card-border: #33332f;
+    --canvas-card-shadow: none;
+    --canvas-wire: #3b5f8a;
+    --canvas-wire-node: #5f8fc8;
+    --canvas-picked: #5f8fc8;
+    --canvas-picked-soft: #1d2a3b;
+
+    --kind-root: #8db8ef;
+    --kind-folder: #7fcf95;
+    --kind-rule: #bba7ef;
+    --kind-common: #a3a39c;
+    --kind-term: #e9b66c;
+    --kind-skill: #e9b66c;
+    --kind-agent: #8db8ef;
+    --kind-hook: #b8b8b1;
+    --bar-folder: #4f9d6a;
+    --bar-layer: #7d68be;
+    --bar-common: #5a5a55;
+    --bar-term: #c08e46;
+}
+
+/* 점 무늬 바탕입니다. 그래프가 놓이는 칸에만 씁니다. */
+.cx-board {
+    background-color: var(--canvas-board);
+    background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
+    background-size: 20px 20px;
+}

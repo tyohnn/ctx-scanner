@@ -21,7 +21,7 @@ export function LevelBadge({ level }: { level: Level })
 
 export function Chars({ value, className }: { value: number; className?: string })
 {
-    return <span className={cn("num", className)}>{n(value)}<span className="ml-0.5 text-muted-foreground">자</span></span>;
+    return <span className={cn("num whitespace-nowrap", className)}>{n(value)}<span className="ml-0.5 text-muted-foreground">자</span></span>;
 }
 
 export function Section({ title, hint, children }: { title: string; hint?: ReactNode; children: ReactNode })
