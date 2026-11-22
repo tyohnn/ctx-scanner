@@ -7,6 +7,8 @@
 @import "./graphite/globals.css";
 @import "./graphite/theme.css";
 @import "./graphite/tokens.css";
+/* 보고서의 컨셉 토큰입니다. graphite 의 값을 덮어씁니다(canvas/theme.css 머리말). */
+@import "./canvas/theme.css";
 @import "./graphite/style.css" layer(base);
 
 /* 보고서만의 규칙입니다. 색과 치수는 위 토큰에서 읽습니다. */
