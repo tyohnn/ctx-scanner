@@ -11,5 +11,6 @@
         "devtools",
         "tracing",
         "skills"
-    ]
+    ],
+    "repository": "https://github.com/tyohnn/ctx-scanner"
 }

@@ -38,15 +38,15 @@ report/                         템플릿의 소스(React · Tailwind · UI SDK 
 비공개 저장소라서 GitHub 에 로그인된 계정으로 설치합니다. 클로드 코드 세션에서 아래 두 줄을 입력합니다.
 
 ```
-/plugin marketplace add <소유자>/context-scanner
+/plugin marketplace add tyohnn/ctx-scanner
 /plugin install context-scanner@context-scanner
 ```
 
 설치하지 않고 한 번만 써 보려면 저장소를 받아 폴더를 직접 넘깁니다.
 
 ```
-git clone git@github.com:<소유자>/context-scanner.git ~/context-scanner
-claude --plugin-dir ~/context-scanner
+git clone git@github.com:tyohnn/ctx-scanner.git ~/context-scanner
+claude --plugin-dir ~/ctx-scanner
 ```
 
 필요한 것은 Node 20 이상과 git 입니다. 측정할 프로젝트는 git 저장소여야 합니다. 맵이 `git ls-files` 로 파일 목록을 읽기 때문입니다.
