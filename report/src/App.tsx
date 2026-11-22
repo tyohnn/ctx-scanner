@@ -7,18 +7,21 @@ import { settled } from "@/components/advice";
 import { IconToggle, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { loadReport } from "@/data";
 import type { FlowFilter } from "@/lib/flowgraph";
+import { AreaCanvasView } from "@/views/AreaCanvasView";
 import { AreaMapView } from "@/views/AreaMapView";
 import { FilesView } from "@/views/FilesView";
 import { FlowView } from "@/views/FlowView";
 import { MapView } from "@/views/MapView";
+import { SessionCanvasView } from "@/views/SessionCanvasView";
+import { StructureView } from "@/views/StructureView";
 import { SummaryView } from "@/views/SummaryView";
 import { TestsView } from "@/views/TestsView";
 import { TimelineView } from "@/views/TimelineView";
 import { TodoView } from "@/views/TodoView";
 
-// 탭은 읽는 사람의 물음 순서입니다: 얼마나(요약) → 무엇부터(할 일) → 무엇이 무엇을 부르나(플로우) → 어디가 무겁나(영역 지도) → 이 파일은(파일) → 자세히(맵 · 타임라인 · 시나리오).
-type Tab = "summary" | "todo" | "flow" | "areas" | "files" | "map" | "timeline" | "tests";
-const TABS: Tab[] = ["summary", "todo", "flow", "areas", "files", "map", "timeline", "tests"];
+// 탭은 읽는 사람의 물음 순서입니다: 얼마나(요약) → 어떻게 생겼나(구조 · 영역 · 세션) → 무엇부터(할 일) → 무엇이 무엇을 부르나(플로우) → 어디가 무겁나(영역 지도) → 이 파일은(파일) → 자세히(맵 · 타임라인 · 시나리오).
+type Tab = "summary" | "structure" | "area" | "session" | "todo" | "flow" | "areas" | "files" | "map" | "timeline" | "tests";
+const TABS: Tab[] = ["summary", "structure", "area", "session", "todo", "flow", "areas", "files", "map", "timeline", "tests"];
 
 // 주소의 # 뒤에 보던 위치를 적어 둡니다. 보고서를 다시 열거나 남에게 건넬 때 같은 화면이 뜹니다.
 function readHash()
@@ -27,7 +30,7 @@ function readHash()
     // 지난 버전의 탭 이름(advice)으로 건넨 주소도 같은 화면을 엽니다.
     const raw = p.get("tab") === "advice" ? "todo" : p.get("tab");
     const tab = TABS.includes(raw as Tab) ? raw as Tab : "summary";
-    return { tab, node: p.get("node"), trace: Number(p.get("trace") ?? -1), dark: p.get("theme") !== "light", area: p.get("area"), scope: p.get("scope") };
+    return { tab, node: p.get("node"), trace: Number(p.get("trace") ?? -1), dark: p.get("theme") === "dark", area: p.get("area"), scope: p.get("scope") };
 }
 
 export function App()
@@ -48,7 +51,8 @@ export function App()
         if (traceIndex >= 0) p.set("trace", String(traceIndex));
         if (tab === "flow" && filter.area) p.set("area", filter.area);
         if (tab === "flow" && filter.scope) p.set("scope", filter.scope);
-        if (!dark) p.set("theme", "light");
+        // 밝은 화면이 기본입니다. 어두운 화면을 고른 때만 주소에 적습니다.
+        if (dark) p.set("theme", "dark");
         history.replaceState(null, "", `#${p}`);
     }, [tab, selected, traceIndex, dark, filter]);
     // 같은 문서 안에서 주소의 # 만 바꿔도 그 화면으로 갑니다(링크로 탭을 건넬 때).
@@ -71,6 +75,9 @@ export function App()
     const todoCount = map.suggestions.filter((x) => !settled(x)).length + (trace?.findings.length ?? 0);
     const tabs: { key: Tab; label: string; badge?: string | number; show: boolean }[] = [
         { key: "summary", label: "요약", show: true },
+        { key: "structure", label: "구조", show: true },
+        { key: "area", label: "영역", show: !!map.flows?.length },
+        { key: "session", label: "세션", badge: traces.length || undefined, show: true },
         { key: "todo", label: "할 일", badge: todoCount, show: true },
         { key: "flow", label: "플로우", show: !!map.flows?.length },
         { key: "areas", label: "영역 지도", show: !!map.flows?.length },
@@ -85,11 +92,11 @@ export function App()
         <ReactFlowProvider>
             <Tabs value={tab} onValueChange={(v) => { if (v) setTab(v as Tab); }} className="h-full gap-0">
                 <header className="flex h-(--tabs-line-height) shrink-0 items-center gap-4 border-b bg-sidebar px-4">
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex shrink-0 items-baseline gap-2">
                         <span className="num text-sm font-semibold tracking-tight">context-scanner</span>
                         <span className="text-xs text-muted-foreground">{report.title ?? map.meta.repo}{map.meta.commit && <span className="num"> @ {map.meta.commit}</span>}</span>
                     </div>
-                    <TabsList aria-label="보고서 화면" className="gap-4 border-b-0">
+                    <TabsList aria-label="보고서 화면" className="min-w-0 gap-4 overflow-x-auto border-b-0">
                         {tabs.filter((t) => t.show).map((t) => (
                             <TabsTrigger key={t.key} value={t.key}>
                                 {t.label}{t.badge != null && <span className="num text-muted-foreground">{t.badge}</span>}
@@ -103,6 +110,9 @@ export function App()
                 <div className="flex min-h-0 flex-1">
                     <main className="min-w-0 flex-1">
                         <TabsContent value="summary" className="h-full"><SummaryView report={report} trace={trace} onOpenCell={openCell} onOpenTodo={() => setTab("todo")} /></TabsContent>
+                        <TabsContent value="structure" className="h-full"><StructureView map={map} onSelect={setSelected} /></TabsContent>
+                        <TabsContent value="area" className="h-full"><AreaCanvasView map={map} onSelect={setSelected} /></TabsContent>
+                        <TabsContent value="session" className="h-full">{trace ? <SessionCanvasView key={trace.session} map={map} trace={trace} traces={traces} onPickTrace={setTraceIndex} onSelect={setSelected} /> : <NoData title="이 측정에는 세션 기록이 없습니다" body="trace 스킬로 세션 기록을 읽은 뒤 보고서를 다시 만들면 여기에 나옵니다." />}</TabsContent>
                         <TabsContent value="todo" className="h-full"><TodoView map={map} trace={trace} onSelect={setSelected} /></TabsContent>
                         <TabsContent value="flow" className="h-full"><FlowView map={map} filter={filter} onFilter={setFilter} onSelect={setSelected} /></TabsContent>
                         <TabsContent value="areas" className="h-full"><AreaMapView map={map} onOpenCell={openCell} /></TabsContent>
